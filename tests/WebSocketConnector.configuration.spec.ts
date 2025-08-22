@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { WebSocketConnectorBase } from '../src/WebSocketConnectorBase';
 import { WebSocketMessage, WebSocketState, WebSocketOptions } from '../src/interfaces';
-import { MockWebSocketConnector } from './MockWebSocketConnector';
+import { MockWebSocketConnector } from '../src/MockWebSocketConnector';
 import { BehaviorSubject, Subject } from 'rxjs';
 
 class ConfigurableWebSocketConnector extends MockWebSocketConnector {

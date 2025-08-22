@@ -1,5 +1,5 @@
 import { AsyncDisposableBase, DisposableBase } from '@tsdotnet/disposable';
-import { BehaviorSubject, Observable, Subject, type Subscription } from 'rxjs';
+import { BehaviorSubject, Observable, PartialObserver, Subject, type Subscription } from 'rxjs';
 import { WebSocketConnector, WebSocketConnection, WebSocketMessage, WebSocketOptions, WebSocketState } from './interfaces';
 
 /**
@@ -32,6 +32,10 @@ class VirtualWebSocketConnection extends DisposableBase implements WebSocketConn
     this.assertIsAlive();
     await this._sendFn(data);
   }
+
+	subscribe(observer?: PartialObserver<WebSocketMessage> | ((value: WebSocketMessage) => void)): Subscription {
+		return this.message$.subscribe(observer);
+	}
 
   protected _onDispose(): void {
     this._subscription.unsubscribe();
@@ -172,8 +176,8 @@ export abstract class WebSocketConnectorBase extends AsyncDisposableBase impleme
     // Cancel any existing timeout
     this._cancelIdleDisconnect();
 
-    // Use a short default timeout of 1 second if not specified
-    const idleTimeout = this.options.idleTimeout ?? 1000;
+		// Use a default timeout of 10 seconds if not specified
+		const idleTimeout = this.options.idleTimeoutMs ?? 10000;
 
     this._idleTimeoutId = setTimeout(() => {
       this._idleTimeoutId = undefined;

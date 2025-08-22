@@ -1,4 +1,4 @@
-import { Observable } from 'rxjs';
+import { Observable, Subscription, PartialObserver } from 'rxjs';
 import { AsyncDisposable, Disposable } from '@tsdotnet/disposable';
 
 /**
@@ -18,9 +18,16 @@ export enum WebSocketState {
  * Configuration options for WebSocket connections
  */
 export interface WebSocketOptions {
+  /** WebSocket sub-protocols */
   protocols?: string | string[];
+  
+  /** Custom headers (Node.js only) */
   headers?: Record<string, string>;
-  idleTimeout?: number;
+  
+  /** Idle timeout in milliseconds before disconnecting when no virtual connections are active (default: 10000ms) */
+  idleTimeoutMs?: number;
+  
+  /** Auto-reconnect on connection failure (default: false) */
   reconnectOnFailure?: boolean;
 }
 
@@ -68,4 +75,9 @@ export interface WebSocketConnection extends Disposable {
    * Send a message through the connection
    */
   send(data: WebSocketMessage): Promise<void>;
+
+  /**
+   * Shortcut for message$.subscribe() - convenience method for the most common use case
+   */
+  subscribe(observer?: PartialObserver<WebSocketMessage> | ((value: WebSocketMessage) => void)): Subscription;
 }

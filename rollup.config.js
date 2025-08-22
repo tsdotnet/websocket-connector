@@ -8,7 +8,8 @@ export default defineConfig({
   input: {
     'index': 'src/index.ts',
     'node': 'src/node.ts',
-    'browser': 'src/browser.ts'
+    'browser': 'src/browser.ts',
+    'mock': 'src/mock.ts'
   },
   output: {
     dir: 'dist/esm',

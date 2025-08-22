@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { firstValueFrom, take, toArray } from 'rxjs';
 import { WebSocketConnectorBase } from '../src/WebSocketConnectorBase';
 import { WebSocketMessage, WebSocketState } from '../src/interfaces';
-import { MockWebSocketConnector } from './MockWebSocketConnector';
+import { MockWebSocketConnector } from '../src/MockWebSocketConnector';
 
 class TestableWebSocketConnector extends MockWebSocketConnector {
   // Expose internal state for testing
@@ -173,6 +173,55 @@ describe('WebSocket Connector Behavior Specifications', () => {
         connection.dispose();
         
         expect(connector.activeVirtualConnections).toBe(0);
+      });
+    });
+
+    describe('When using subscribe shortcut', () => {
+      it('should provide a subscribe method that delegates to message$', async () => {
+        const connection = await connector.connect();
+        
+        let receivedMessage: WebSocketMessage | undefined;
+        const subscription = connection.subscribe(message => {
+          receivedMessage = message;
+        });
+        
+        expect(subscription).toBeDefined();
+        expect(typeof subscription.unsubscribe).toBe('function');
+        
+        // Test it works like message$.subscribe
+        connector.simulateMessage('Hello World');
+        await new Promise(resolve => setTimeout(resolve, 10));
+        
+        expect(receivedMessage).toBe('Hello World');
+        
+        subscription.unsubscribe();
+        connection.dispose();
+      });
+
+      it('should work with observer objects', async () => {
+        const connection = await connector.connect();
+        
+        let receivedMessage: WebSocketMessage | undefined;
+        let errorReceived: any;
+        let completed = false;
+        
+        const subscription = connection.subscribe({
+          next: message => { receivedMessage = message; },
+          error: error => { errorReceived = error; },
+          complete: () => { completed = true; }
+        });
+        
+        connector.simulateMessage('Test Message');
+        await new Promise(resolve => setTimeout(resolve, 10));
+        
+        expect(receivedMessage).toBe('Test Message');
+        
+        connection.dispose();
+        await new Promise(resolve => setTimeout(resolve, 10));
+        
+        expect(completed).toBe(true);
+        
+        subscription.unsubscribe();
       });
     });
   });

@@ -1,157 +1,525 @@
-# ![alt text](https://avatars1.githubusercontent.com/u/64487547?s=30 "tsdotnet") tsdotnet / websocket-connector
+# @tsdotnet/websocket-connector
 
-[![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square)](https://github.com/tsdotnet/websocket-connector/blob/master/LICENSE)
-![npm-publish](https://github.com/tsdotnet/websocket-connector/workflows/npm-publish/badge.svg)
-[![npm version](https://img.shields.io/npm/v/@tsdotnet/websocket-connector.svg?style=flat-square)](https://www.npmjs.com/package/@tsdotnet/websocket-connector)
+[![npm version](https://badge.fury.io/js/%40tsdotnet%2Fwebsocket-connector.svg)](https://badge.fury.io/js/%40tsdotnet%2Fwebsocket-connector)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![TypeScript](https://img.shields.io/badge/TypeScript-Ready-blue.svg)](https://www.typescriptlang.org/)
 
-Universal WebSocket connector base class with connection pooling, virtual connections, and RxJS observables for state management.
+Universal WebSocket connector with connection pooling, virtual connections, and comprehensive testing utilities. Built with RxJS observables and TypeScript.
 
-## Installation
+## ✨ Features
+
+- 🔄 **Connection Pooling**: Multiple virtual connections share a single WebSocket
+- 🚀 **Lazy Connection**: WebSocket created only when first virtual connection is requested
+- 🎯 **Virtual Connections**: Independent message streams for different parts of your application
+- 📡 **RxJS Observables**: Reactive streams for messages, errors, and connection states
+- 🔌 **Platform Agnostic**: Separate implementations for Browser and Node.js
+- 🧪 **Testing Support**: Built-in mock connector for comprehensive testing
+- ♻️ **Auto Reconnection**: Optional automatic reconnection with customizable behavior
+- 💤 **Idle Disconnection**: Automatic cleanup when no virtual connections are active
+- 📦 **TypeScript**: Full type safety with comprehensive interfaces
+
+## 📦 Installation
 
 ```bash
 npm install @tsdotnet/websocket-connector
 ```
 
-## Usage
+## 🚀 Quick Start
 
-### Basic Example
+### Browser Usage
 
 ```typescript
-import { WebSocketConnectorBase, WebSocketState } from '@tsdotnet/websocket-connector';
+import { BrowserWebSocketConnector } from '@tsdotnet/websocket-connector/browser';
 
-class MyWebSocketConnector extends WebSocketConnectorBase {
-  protected createConnection() {
-    // Return platform-specific connection implementation
-    return new MyPlatformConnection(this.url, this.options);
-  }
-}
+const connector = new BrowserWebSocketConnector('wss://api.example.com/ws');
 
-const connector = new MyWebSocketConnector('ws://localhost:8080');
-
-// Get a virtual connection
+// Create a virtual connection
 const connection = await connector.connect();
 
-// Listen for messages
-connection.message$.subscribe(message => {
+// Listen for messages (shortcut method)
+connection.subscribe(message => {
   console.log('Received:', message);
 });
 
 // Send messages
-connection.send('Hello WebSocket!');
+await connection.send('Hello WebSocket!');
+await connection.send(new Uint8Array([1, 2, 3, 4])); // Binary data
 
-// Monitor connection state
-connector.state$.subscribe(state => {
-  console.log('Connection state:', state);
-});
+// Clean up
+connection.dispose();
+await connector.disposeAsync();
 ```
 
-### Advanced Usage
+### Node.js Usage
 
 ```typescript
-// Multiple virtual connections sharing underlying connection
-const connection1 = await connector.connect();
-const connection2 = await connector.connect();
+import { NodeWebSocketConnector } from '@tsdotnet/websocket-connector/node';
 
-// Both share the same underlying WebSocket connection
+const connector = new NodeWebSocketConnector('ws://localhost:8080', {
+  headers: { 'Authorization': 'Bearer token123' },
+  protocols: ['v1', 'v2'],
+  idleTimeout: 30000, // 30 seconds
+  reconnectOnFailure: true
+});
+
+const connection = await connector.connect();
+
+connection.subscribe({
+  next: message => console.log('Message:', message),
+  error: err => console.error('Message error:', err),
+  complete: () => console.log('Connection closed')
+});
+
+await connection.send(JSON.stringify({ type: 'ping' }));
+```
+
+## 🎯 Core Concepts
+
+### Virtual Connections
+
+Multiple parts of your application can create independent "virtual" connections that all share the same underlying WebSocket:
+
+```typescript
+import { BrowserWebSocketConnector } from '@tsdotnet/websocket-connector/browser';
+
+const connector = new BrowserWebSocketConnector('wss://api.example.com/ws');
+
+// Chat component gets its own virtual connection
+const chatConnection = await connector.connect();
+chatConnection.subscribe(msg => {
+  // Only chat-related logic here
+  if (JSON.parse(msg).type === 'chat') {
+    updateChatUI(JSON.parse(msg));
+  }
+});
+
+// Notifications component gets its own virtual connection  
+const notificationConnection = await connector.connect();
+notificationConnection.subscribe(msg => {
+  // Only notification-related logic here
+  if (JSON.parse(msg).type === 'notification') {
+    showNotification(JSON.parse(msg));
+  }
+});
+
+// Both share the same underlying WebSocket connection!
 console.log(connector.activeVirtualConnections); // 2
+```
 
-// Dispose individual connections
-connection1.dispose();
-console.log(connector.activeVirtualConnections); // 1
+### Connection States
 
-// Monitor errors at connector level
-connector.error$.subscribe(error => {
-  console.error('Connection error:', error);
+Monitor the connection lifecycle with reactive state streams:
+
+```typescript
+import { WebSocketState } from '@tsdotnet/websocket-connector';
+
+connector.state$.subscribe(state => {
+  switch (state) {
+    case WebSocketState.Disconnected:
+      console.log('Ready to connect');
+      break;
+    case WebSocketState.Connecting:
+      showSpinner(true);
+      break;
+    case WebSocketState.Connected:
+      showSpinner(false);
+      break;
+    case WebSocketState.Reconnecting:
+      showReconnectingBanner();
+      break;
+    case WebSocketState.Disconnecting:
+      console.log('Shutting down...');
+      break;
+  }
 });
 ```
 
-## API
+### Error Handling
 
-### Main Classes
+Handle connection-level errors separately from message-level concerns:
 
-#### `WebSocketConnectorBase`
+```typescript
+// Connection-level errors (network issues, authentication, etc.)
+connector.error$.subscribe(error => {
+  console.error('Connection error:', error);
+  showErrorBanner(`Connection failed: ${error.message}`);
+});
 
-Abstract base class for WebSocket connector implementations with connection pooling and lazy initialization.
+// Message-level errors are handled per virtual connection
+connection.message$.subscribe({
+  next: message => processMessage(message),
+  error: error => console.error('Message processing error:', error)
+});
+```
 
-**Constructor Parameters:**
-- `url: string` - WebSocket server URL
-- `options?: WebSocketOptions` - Connection configuration options
+## ⚙️ Configuration Options
 
-**Properties:**
-- `state$: Observable<WebSocketState>` - Observable stream of connection state changes
-- `error$: Observable<Error>` - Observable stream of connection-level errors  
-- `activeVirtualConnections: number` - Number of active virtual connections
+```typescript
+interface WebSocketOptions {
+  /** WebSocket sub-protocols */
+  protocols?: string | string[];
+  
+  /** Custom headers (Node.js only) */
+  headers?: Record<string, string>;
+  
+  /** Idle timeout in milliseconds (default: 5000ms) */
+  idleTimeout?: number;
+  
+  /** Auto-reconnect on connection failure (default: false) */
+  reconnectOnFailure?: boolean;
+}
 
-**Methods:**
-- `connect(): Promise<WebSocketConnection>` - Create a virtual connection (lazy connection creation)
-- `disposeAsync(): Promise<void>` - Dispose connector and all virtual connections
+const connector = new NodeWebSocketConnector('ws://localhost:8080', {
+  protocols: ['graphql-ws', 'graphql-transport-ws'],
+  headers: {
+    'Authorization': 'Bearer your-token',
+    'User-Agent': 'MyApp/1.0'
+  },
+  idleTimeout: 60000, // 1 minute
+  reconnectOnFailure: true
+});
+```
 
-#### `WebSocketConnection`
+## 🔄 Reconnection Behavior
 
-Virtual connection interface for messaging operations.
+When `reconnectOnFailure: true` is enabled:
 
-**Properties:**
-- `message$: Observable<WebSocketMessage>` - Observable stream of incoming messages
+```typescript
+const connector = new BrowserWebSocketConnector('wss://api.example.com/ws', {
+  reconnectOnFailure: true
+});
 
-**Methods:**
-- `send(data: WebSocketMessage): void` - Send a message through the connection
-- `dispose(): void` - Dispose the virtual connection
+const connection = await connector.connect();
 
-### Interfaces
+// Monitor reconnection states
+connector.state$.subscribe(state => {
+  if (state === WebSocketState.Reconnecting) {
+    console.log('Connection lost, attempting to reconnect...');
+    // Virtual connections remain alive during reconnection
+    console.log(`${connector.activeVirtualConnections} connections waiting for reconnect`);
+  }
+});
 
-#### `WebSocketOptions`
+// Virtual connections automatically resume after reconnection
+connection.subscribe(message => {
+  // This will continue receiving messages even after reconnection
+  console.log('Message (survives reconnection):', message);
+});
+```
 
-Configuration options for WebSocket connections.
+## 🏗️ Advanced Usage
 
-**Properties:**
-- `protocols?: string | string[]` - WebSocket subprotocols
-- `headers?: Record<string, string>` - HTTP headers for connection
-- `idleTimeout?: number` - Connection idle timeout
-- `reconnectOnFailure?: boolean` - Enable automatic reconnection
+### Message Filtering and Routing
 
-#### `WebSocketState`
+```typescript
+import { filter, map } from 'rxjs/operators';
 
-Enumeration of possible connection states:
-- `Disconnected` - Not connected
-- `Connecting` - Establishing connection
-- `Connected` - Successfully connected
-- `Reconnecting` - Attempting to reconnect
-- `Disconnecting` - Closing connection  
-- `Disposing` - Cleaning up resources
-- `Disposed` - Fully disposed
+const connector = new BrowserWebSocketConnector('wss://api.example.com/ws');
+const connection = await connector.connect();
 
-## Features
+// Filter and transform messages
+const chatMessages$ = connection.message$.pipe(
+  map(msg => JSON.parse(msg as string)),
+  filter(data => data.type === 'chat'),
+  map(data => data.payload)
+);
 
-- ✅ **Connection Pooling**: Multiple virtual connections share underlying WebSocket
-- ✅ **Lazy Initialization**: Connections created only when needed
-- ✅ **State Management**: RxJS observables for state and error tracking
-- ✅ **Resource Management**: Proper disposal pattern with @tsdotnet/disposable
-- ✅ **Virtual Connections**: Isolated message streams per consumer
-- ✅ **Platform Agnostic**: Abstract base for browser/Node.js implementations
-- ✅ **Type Safety**: Full TypeScript support with strict typing
+const notifications$ = connection.message$.pipe(
+  map(msg => JSON.parse(msg as string)),
+  filter(data => data.type === 'notification')
+);
 
-## Architecture
+chatMessages$.subscribe(payload => updateChatUI(payload));
+notifications$.subscribe(notification => showNotification(notification));
+```
 
-The connector uses a **factory pattern** where:
-- The `WebSocketConnector` manages the underlying connection lifecycle
-- Multiple `WebSocketConnection` instances provide isolated messaging interfaces
-- Automatic cleanup when all virtual connections are disposed
-- Platform-specific implementations extend the abstract base class
+## 🧪 Testing with MockWebSocketConnector
 
-## Requirements
+The library includes a comprehensive mock connector for testing WebSocket functionality without real network connections.
 
-- TypeScript 5.0+
-- RxJS 7.0+
-- @tsdotnet/disposable 2.0+
+### Basic Mocking
 
-## Docs
+```typescript
+import { MockWebSocketConnector } from '@tsdotnet/websocket-connector/mock';
 
-[tsdotnet.github.io/websocket-connector](https://tsdotnet.github.io/websocket-connector/)
+describe('WebSocket functionality', () => {
+  let mockConnector: MockWebSocketConnector;
+  
+  beforeEach(() => {
+    mockConnector = new MockWebSocketConnector('ws://test');
+  });
+  
+  afterEach(async () => {
+    await mockConnector.disposeAsync();
+  });
 
-## Contributing
+  it('should handle messages', async () => {
+    const connection = await mockConnector.connect();
+    
+    let receivedMessage: any;
+    connection.message$.subscribe(msg => {
+      receivedMessage = msg;
+    });
+    
+    // Simulate receiving a message
+    mockConnector.simulateMessage('Hello from server!');
+    
+    await new Promise(resolve => setTimeout(resolve, 10));
+    expect(receivedMessage).toBe('Hello from server!');
+  });
+  
+  it('should handle connection errors', async () => {
+    const connection = await mockConnector.connect();
+    
+    let receivedError: Error | undefined;
+    mockConnector.error$.subscribe(error => {
+      receivedError = error;
+    });
+    
+    // Simulate a connection error
+    mockConnector.simulateError(new Error('Connection failed'));
+    
+    await new Promise(resolve => setTimeout(resolve, 10));
+    expect(receivedError?.message).toBe('Connection failed');
+  });
+});
+```
 
-This package is part of the tsdotnet project. Please see the main repository for contribution guidelines.
+### Advanced Testing Scenarios
 
-## License
+```typescript
+import { WebSocketState } from '@tsdotnet/websocket-connector';
+import { firstValueFrom } from 'rxjs';
 
-MIT
+describe('Advanced WebSocket testing', () => {
+  let mockConnector: MockWebSocketConnector;
+  
+  beforeEach(() => {
+    mockConnector = new MockWebSocketConnector('ws://test');
+  });
+  
+  afterEach(async () => {
+    await mockConnector.disposeAsync();
+  });
+
+  it('should handle connection state changes', async () => {
+    const connection = await mockConnector.connect();
+    
+    const statePromise = firstValueFrom(mockConnector.state$);
+    expect(await statePromise).toBe(WebSocketState.Connected);
+    
+    // Simulate disconnection
+    mockConnector.simulateDisconnection();
+    
+    const disconnectedState = firstValueFrom(mockConnector.state$);
+    expect(await disconnectedState).toBe(WebSocketState.Disconnected);
+  });
+  
+  it('should simulate connection failures', async () => {
+    const connection = await mockConnector.connect();
+    
+    let connectionError: Error | undefined;
+    mockConnector.error$.subscribe(error => {
+      connectionError = error;
+    });
+    
+    // Simulate network failure
+    mockConnector.simulateConnectionFailure();
+    
+    await new Promise(resolve => setTimeout(resolve, 10));
+    expect(connectionError?.message).toBe('Network failure');
+  });
+  
+  it('should test message sending', async () => {
+    const connection = await mockConnector.connect();
+    
+    // The mock echoes messages back
+    let echoMessage: any;
+    connection.message$.subscribe(msg => {
+      echoMessage = msg;
+    });
+    
+    await connection.send('Test message');
+    
+    await new Promise(resolve => setTimeout(resolve, 10));
+    expect(echoMessage).toBe('Test message');
+  });
+  
+  it('should test binary data handling', async () => {
+    const connection = await mockConnector.connect();
+    
+    let receivedData: any;
+    connection.message$.subscribe(msg => {
+      receivedData = msg;
+    });
+    
+    const binaryData = new Uint8Array([1, 2, 3, 4]);
+    await connection.send(binaryData);
+    
+    await new Promise(resolve => setTimeout(resolve, 10));
+    expect(receivedData).toEqual(binaryData);
+  });
+});
+```
+
+### Testing Reconnection Logic
+
+```typescript
+describe('Reconnection testing', () => {
+  it('should maintain virtual connections during reconnection', async () => {
+    const mockConnector = new MockWebSocketConnector('ws://test', {
+      reconnectOnFailure: true
+    });
+    
+    const connection1 = await mockConnector.connect();
+    const connection2 = await mockConnector.connect();
+    
+    expect(mockConnector.activeVirtualConnections).toBe(2);
+    
+    // Simulate connection failure (triggers reconnection)
+    mockConnector.simulateConnectionFailure();
+    
+    // Virtual connections should still exist
+    expect(mockConnector.activeVirtualConnections).toBe(2);
+    
+    // Clean up
+    await connection1.dispose();
+    await connection2.dispose();
+    await mockConnector.disposeAsync();
+  });
+});
+```
+
+### Integration Testing
+
+```typescript
+class ChatService {
+  constructor(private connector: WebSocketConnector) {}
+  
+  async sendMessage(message: string): Promise<void> {
+    const connection = await this.connector.connect();
+    await connection.send(JSON.stringify({
+      type: 'chat',
+      message,
+      timestamp: Date.now()
+    }));
+  }
+  
+  getMessages$() {
+    return from(this.connector.connect()).pipe(
+      switchMap(connection => connection.message$),
+      map(msg => JSON.parse(msg as string)),
+      filter(data => data.type === 'chat')
+    );
+  }
+}
+
+describe('ChatService integration', () => {
+  it('should send and receive chat messages', async () => {
+    const mockConnector = new MockWebSocketConnector('ws://test');
+    const chatService = new ChatService(mockConnector);
+    
+    let receivedMessage: any;
+    chatService.getMessages$().subscribe(msg => {
+      receivedMessage = msg;
+    });
+    
+    await chatService.sendMessage('Hello, world!');
+    
+    // Mock will echo the message back
+    await new Promise(resolve => setTimeout(resolve, 10));
+    
+    expect(receivedMessage.message).toBe('Hello, world!');
+    expect(receivedMessage.type).toBe('chat');
+    
+    await mockConnector.disposeAsync();
+  });
+});
+```
+
+## 📚 API Reference
+
+### WebSocketConnector Interface
+
+```typescript
+interface WebSocketConnector {
+  /** Create a virtual connection (lazy initialization) */
+  connect(): Promise<WebSocketConnection>;
+  
+  /** Observable stream of connection state changes */
+  readonly state$: Observable<WebSocketState>;
+  
+  /** Observable stream of connection-level errors */
+  readonly error$: Observable<Error>;
+  
+  /** Number of active virtual connections */
+  readonly activeVirtualConnections: number;
+  
+  /** Dispose the connector and all virtual connections */
+  disposeAsync(): Promise<void>;
+}
+```
+
+### WebSocketConnection Interface
+
+```typescript
+interface WebSocketConnection {
+  /** Observable stream of incoming messages */
+  readonly message$: Observable<WebSocketMessage>;
+  
+  /** Send a message through the connection */
+  send(data: WebSocketMessage): Promise<void>;
+  
+  /** Convenience method for message$.subscribe() - the most common use case */
+  subscribe(observer?: PartialObserver<WebSocketMessage> | ((value: WebSocketMessage) => void)): Subscription;
+  
+  /** Dispose this virtual connection */
+  dispose(): void;
+}
+```
+
+### WebSocketState Enum
+
+```typescript
+enum WebSocketState {
+  Disconnected = 'disconnected',
+  Connecting = 'connecting',
+  Connected = 'connected',
+  Reconnecting = 'reconnecting',
+  Disconnecting = 'disconnecting',
+  Disposing = 'disposing',
+  Disposed = 'disposed'
+}
+```
+
+## 🔧 Entry Points
+
+The library provides multiple entry points for different use cases:
+
+```typescript
+// Core interfaces and base classes
+import { WebSocketState } from '@tsdotnet/websocket-connector';
+
+// Browser implementation
+import { BrowserWebSocketConnector } from '@tsdotnet/websocket-connector/browser';
+
+// Node.js implementation  
+import { NodeWebSocketConnector } from '@tsdotnet/websocket-connector/node';
+
+// Testing utilities
+import { MockWebSocketConnector } from '@tsdotnet/websocket-connector/mock';
+```
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- Built on [RxJS](https://rxjs.dev/) for reactive programming
+- Uses [@tsdotnet/disposable](https://www.npmjs.com/package/@tsdotnet/disposable) for resource management
+- WebSocket implementation via native WebSocket API (browser) and [ws](https://www.npmjs.com/package/ws) (Node.js)

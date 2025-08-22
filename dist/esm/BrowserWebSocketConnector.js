@@ -88,7 +88,7 @@ class BrowserWebSocketConnector extends WebSocketConnectorBase {
                     this._emitError(error);
                 }
             };
-            const onError = (event) => {
+            const onError = () => {
                 cleanup();
                 this._updateState(WebSocketState.Disconnected);
                 const error = new Error('WebSocket connection error');

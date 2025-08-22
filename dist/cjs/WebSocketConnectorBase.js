@@ -21,6 +21,9 @@ class VirtualWebSocketConnection extends disposable_1.DisposableBase {
         this.assertIsAlive();
         await this._sendFn(data);
     }
+    subscribe(observer) {
+        return this.message$.subscribe(observer);
+    }
     _onDispose() {
         this._subscription.unsubscribe();
         this._message$.complete();

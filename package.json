@@ -1,7 +1,7 @@
 {
   "name": "@tsdotnet/websocket-connector",
   "version": "1.0.0",
-  "description": "Universal WebSocket connector base class with connection pooling and virtual connections",
+  "description": "Universal WebSocket connector base class with connection pooling, virtual connections, and testing utilities",
   "author": "electricessence",
   "license": "MIT",
   "type": "module",
@@ -22,6 +22,11 @@
       "types": "./dist/types/browser.d.ts",
       "import": "./dist/esm/browser.js",
       "require": "./dist/cjs/browser.js"
+    },
+    "./mock": {
+      "types": "./dist/types/mock.d.ts",
+      "import": "./dist/esm/mock.js",
+      "require": "./dist/cjs/mock.js"
     }
   },
   "types": "./dist/types/index.d.ts",
@@ -32,7 +37,10 @@
     "observable",
     "disposable",
     "virtual-connections",
-    "connection-pooling"
+    "connection-pooling",
+    "testing",
+    "mock",
+    "test-utilities"
   ],
   "scripts": {
     "clean": "rimraf dist",

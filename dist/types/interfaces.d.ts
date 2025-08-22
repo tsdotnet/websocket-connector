@@ -1,4 +1,4 @@
-import { Observable } from 'rxjs';
+import { Observable, Subscription, PartialObserver } from 'rxjs';
 import { AsyncDisposable, Disposable } from '@tsdotnet/disposable';
 export declare enum WebSocketState {
     Disconnected = "disconnected",
@@ -25,4 +25,5 @@ export interface WebSocketConnector extends AsyncDisposable {
 export interface WebSocketConnection extends Disposable {
     readonly message$: Observable<WebSocketMessage>;
     send(data: WebSocketMessage): Promise<void>;
+    subscribe(observer?: PartialObserver<WebSocketMessage> | ((value: WebSocketMessage) => void)): Subscription;
 }

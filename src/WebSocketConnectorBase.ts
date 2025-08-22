@@ -3,8 +3,13 @@ import { BehaviorSubject, Observable, PartialObserver, Subject, type Subscriptio
 import { WebSocketConnector, WebSocketConnection, WebSocketMessage, WebSocketOptions, WebSocketState } from './interfaces';
 
 /**
- * Virtual WebSocket connection that wraps the connector's underlying WebSocket
- * Multiple virtual connections can share the same underlying WebSocket
+ * Virtual WebSocket connection that wraps a shared physical connection.
+ * 
+ * @remarks
+ * - Multiple virtual connections share the same underlying WebSocket
+ * - Each receives all messages but can subscribe/dispose independently  
+ * - Automatically forwards messages from the parent connector
+ * - Completes message stream when disposed
  */
 class VirtualWebSocketConnection extends DisposableBase implements WebSocketConnection {
 	private readonly _message$ = new Subject<WebSocketMessage>();
@@ -45,9 +50,40 @@ class VirtualWebSocketConnection extends DisposableBase implements WebSocketConn
 }
 
 /**
- * Abstract base class for WebSocket connector implementations
- * Handles all the connection logic, virtual connections, and observables
- * Subclasses only need to implement WebSocket creation/management
+ * Abstract base class providing WebSocket connector functionality with connection pooling.
+ * 
+ * @remarks
+ * This class handles:
+ * - Virtual connection management and message routing
+ * - Connection state management and lifecycle
+ * - Automatic reconnection with exponential backoff (when configured)
+ * - Idle timeout and cleanup when no virtual connections remain
+ * - Observable streams for state, errors, and messages
+ * 
+ * Subclasses must implement:
+ * - `_ensureConnection()`: Platform-specific WebSocket creation
+ * - `_sendMessage()`: Platform-specific message sending  
+ * - `_ensureDisconnect()`: Platform-specific cleanup
+ * 
+ * @example
+ * ```typescript
+ * class MyWebSocketConnector extends WebSocketConnectorBase {
+ *   protected async _ensureConnection() {
+ *     // Create platform-specific WebSocket
+ *     this._webSocket = new WebSocket(this.url, this.options?.protocols);
+ *     // Set up event handlers...
+ *     return WebSocketState.Connected;
+ *   }
+ *   
+ *   protected async _sendMessage(data: WebSocketMessage) {
+ *     this._webSocket.send(data);
+ *   }
+ *   
+ *   protected async _ensureDisconnect() {
+ *     this._webSocket?.close();
+ *   }
+ * }
+ * ```
  */
 export abstract class WebSocketConnectorBase extends AsyncDisposableBase implements WebSocketConnector {
 	private readonly _virtualConnections = new Set<VirtualWebSocketConnection>();

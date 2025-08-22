@@ -7,8 +7,30 @@ import { WebSocketMessage, WebSocketState, WebSocketOptions } from './interfaces
 import { WebSocketConnectorBase } from './WebSocketConnectorBase';
 
 /**
- * Browser WebSocket connector implementation
- * Uses the native browser WebSocket API
+ * WebSocket connector for browser environments using the native WebSocket API.
+ * 
+ * @remarks
+ * - Uses browser's built-in WebSocket class
+ * - Supports binary data (ArrayBuffer, Uint8Array) and text messages
+ * - Handles Blob data by converting to text
+ * - Includes proper error handling and cleanup
+ * - Supports WebSocket sub-protocols
+ * 
+ * @example
+ * ```typescript
+ * const connector = new BrowserWebSocketConnector('wss://api.example.com/ws', {
+ *   protocols: ['v1', 'v2'],
+ *   reconnectAttempts: 3,
+ *   idleTimeoutMs: 30000
+ * });
+ * 
+ * const connection = await connector.connect();
+ * connection.subscribe(message => {
+ *   console.log('Received:', message);
+ * });
+ * 
+ * await connection.send('Hello WebSocket!');
+ * ```
  */
 export class BrowserWebSocketConnector extends WebSocketConnectorBase {
 	private _webSocket: WebSocket | undefined;

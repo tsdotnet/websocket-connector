@@ -258,13 +258,14 @@ export abstract class WebSocketConnectorBase extends AsyncDisposableBase impleme
    * Dispose of all connections and resources
    */
   protected async _onDisposeAsync(): Promise<void> {
+    // Complete message and error observables immediately to prevent further emissions
     this._message$.complete();
     this._error$.complete();
 
-    // First fire a disconnect so that any listeners can handle that.
+    // First fire a disconnect so that any listeners can handle that disconnection sequence
     await this._disconnect();
 
-    // After the guarantee of disconnection, proceed with disposal.
+    // After disconnection, proceed with disposal
     this._state$.next(WebSocketState.Disposing);
 
     // Dispose all virtual connections
@@ -275,6 +276,8 @@ export abstract class WebSocketConnectorBase extends AsyncDisposableBase impleme
     }
 
     this._state$.next(WebSocketState.Disposed);
+    
+    // Complete state observable AFTER emitting final state
     this._state$.complete();
   }
 

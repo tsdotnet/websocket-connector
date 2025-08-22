@@ -48,6 +48,9 @@ export class MockWebSocket {
   simulateError(error: Error): void {
     setTimeout(() => {
       if (this.onerror) this.onerror(error);
+      // Errors typically close the connection
+      this.readyState = 3; // CLOSED
+      if (this.onclose) this.onclose();
     }, 1);
   }
 
@@ -56,6 +59,10 @@ export class MockWebSocket {
     setTimeout(() => {
       if (this.onclose) this.onclose();
     }, 1);
+  }
+
+  simulateConnectionFailure(): void {
+    this.simulateError(new Error('Network failure'));
   }
 }
 
@@ -67,8 +74,18 @@ export class MockWebSocketConnector extends WebSocketConnectorBase {
       return WebSocketState.Connected;
     }
 
+    // If we already have a connecting WebSocket, wait for it
     if (this.mockWs?.readyState === 0) {
-      return WebSocketState.Connecting;
+      return new Promise<WebSocketState>((resolve) => {
+        const checkConnection = () => {
+          if (this.mockWs?.readyState === 1) {
+            resolve(WebSocketState.Connected);
+          } else {
+            setTimeout(checkConnection, 1);
+          }
+        };
+        checkConnection();
+      });
     }
 
     return this._connectWebSocket();
@@ -82,10 +99,19 @@ export class MockWebSocketConnector extends WebSocketConnectorBase {
   }
 
   protected async _ensureDisconnect(): Promise<void> {
-    if (this.mockWs) {
+    if (this.mockWs && this.mockWs.readyState !== 3) {
       this.mockWs.close();
-      // Wait a bit for close event
-      await new Promise(resolve => setTimeout(resolve, 10));
+      // Wait for close event
+      return new Promise<void>(resolve => {
+        const checkClosed = () => {
+          if (!this.mockWs || this.mockWs.readyState === 3) {
+            resolve();
+          } else {
+            setTimeout(checkClosed, 1);
+          }
+        };
+        checkClosed();
+      });
     }
   }
 
@@ -94,11 +120,13 @@ export class MockWebSocketConnector extends WebSocketConnectorBase {
       this.mockWs = new MockWebSocket();
       this._setupWebSocketListeners();
       
-      // Simulate async connection
+      // Auto-open the connection after a short delay
       setTimeout(() => {
-        this._updateState(WebSocketState.Connecting);
-        resolve(WebSocketState.Connecting);
-      }, 1);
+        if (this.mockWs) {
+          this.mockWs.simulateOpen();
+          resolve(WebSocketState.Connected);
+        }
+      }, 5);
     });
   }
 
@@ -106,7 +134,7 @@ export class MockWebSocketConnector extends WebSocketConnectorBase {
     if (!this.mockWs) return;
 
     this.mockWs.onopen = () => {
-      this._updateState(WebSocketState.Connected);
+      // Don't emit Connected here - let the _ensureConnection promise handle it
     };
 
     this.mockWs.onmessage = (event) => {
@@ -120,10 +148,6 @@ export class MockWebSocketConnector extends WebSocketConnectorBase {
     this.mockWs.onerror = (error) => {
       this._emitError(error);
     };
-  }
-
-  protected _onDisposeAsync(): Promise<void> {
-    return this._ensureDisconnect();
   }
 
   // Test helpers
@@ -149,5 +173,16 @@ export class MockWebSocketConnector extends WebSocketConnectorBase {
     if (this.mockWs) {
       this.mockWs.simulateClose();
     }
+  }
+
+  simulateConnectionFailure(): void {
+    if (this.mockWs) {
+      this.mockWs.simulateError(new Error('Network failure'));
+    }
+  }
+
+  // Expose the mock connection for testing
+  get mockConnection(): MockWebSocket | undefined {
+    return this.mockWs;
   }
 }

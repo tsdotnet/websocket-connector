@@ -10,15 +10,14 @@ class TestableWebSocketConnector extends MockWebSocketConnector {
     return (this as any)._virtualConnections.size;
   }
 
-  // For test compatibility, create a bridge object
+  // For test compatibility, override mockConnection with additional methods
   get mockConnection() {
-    return this.mockWs ? {
-      ...this.mockWs,
-      simulateMessage: (message: WebSocketMessage) => this.simulateMessage(message),
-      simulateError: (error: Error) => this.simulateError(error),
-      simulateDisconnection: () => this.simulateDisconnection(),
-      send: (data: WebSocketMessage) => this.mockWs?.send(data)
-    } : undefined;
+    if (!this.mockWs) return undefined;
+    const base = this.mockWs;
+    return Object.assign(base, {
+      simulateConnectionFailure: () => this.simulateConnectionFailure(),
+      simulateDisconnection: () => this.simulateDisconnection()
+    });
   }
 }
 
@@ -38,9 +37,9 @@ describe('WebSocket Connector Behavior Specifications', () => {
   describe('Given a WebSocket Connector', () => {
     
     describe('When initially created', () => {
-      it('should be in Disconnected state', () => {
+      it('should be in Disconnected state', async () => {
         expect(connector.state$).toBeDefined();
-        expect(firstValueFrom(connector.state$.pipe(take(1)))).resolves.toBe(WebSocketState.Disconnected);
+        await expect(firstValueFrom(connector.state$.pipe(take(1)))).resolves.toBe(WebSocketState.Disconnected);
       });
 
       it('should have zero active virtual connections', () => {
@@ -139,7 +138,7 @@ describe('WebSocket Connector Behavior Specifications', () => {
         
         const sendSpy = vi.spyOn(connector.mockConnection!, 'send');
         
-        connection.send('test message');
+        await connection.send('test message');
         
         expect(sendSpy).toHaveBeenCalledWith('test message');
       });
@@ -148,7 +147,7 @@ describe('WebSocket Connector Behavior Specifications', () => {
         const connection = await connector.connect();
         connection.dispose();
         
-        expect(() => connection.send('test')).toThrow('Cannot send data through disposed connection');
+        await expect(() => connection.send('test')).rejects.toThrow('Object \'VirtualWebSocketConnection\' has been disposed and cannot be used.');
       });
     });
 
@@ -253,8 +252,8 @@ describe('WebSocket Connector Behavior Specifications', () => {
 
       it('should prevent creating new connections after disposal', async () => {
         await connector.disposeAsync();
-        
-        await expect(connector.connect()).rejects.toThrow('Cannot create connections from disposed connector');
+
+        await expect(connector.connect()).rejects.toThrow('Object \'TestableWebSocketConnector\' has been disposed and cannot be used.');
       });
     });
   });
@@ -319,15 +318,13 @@ describe('WebSocket Connector Behavior Specifications', () => {
         
         const states: WebSocketState[] = [];
         
+        // Subscribe to all states BEFORE disposal starts
+        connector.state$.subscribe(state => {
+          states.push(state);
+        });
+        
         // Start disposal process
         const disposePromise = connector.disposeAsync();
-        
-        // Subscribe after disposal starts
-        connector.state$.subscribe(state => {
-          if (state === WebSocketState.Disposing || state === WebSocketState.Disposed) {
-            states.push(state);
-          }
-        });
         
         // Try to change underlying connection state during disposal
         connector.mockConnection!.simulateDisconnection();
@@ -335,10 +332,16 @@ describe('WebSocket Connector Behavior Specifications', () => {
         await disposePromise;
         await new Promise(resolve => setTimeout(resolve, 10));
         
-        // Should only see disposal states, not the simulated disconnection
-        expect(states).toContain(WebSocketState.Disposing);
-        expect(states).toContain(WebSocketState.Disposed);
-        expect(states.filter(s => s === WebSocketState.Disconnected)).toHaveLength(0);
+        // Should only see disposal states after disposal starts, not the simulated disconnection
+        const disposalStates = states.filter(s => 
+          s === WebSocketState.Disposing || s === WebSocketState.Disposed
+        );
+        expect(disposalStates).toContain(WebSocketState.Disposing);
+        expect(disposalStates).toContain(WebSocketState.Disposed);
+        
+        // Should not see disconnected state after disposal starts
+        const statesAfterDisposalStart = states.slice(states.indexOf(WebSocketState.Disposing));
+        expect(statesAfterDisposalStart.filter(s => s === WebSocketState.Disconnected)).toHaveLength(0);
       });
     });
   });

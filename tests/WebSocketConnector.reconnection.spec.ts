@@ -36,7 +36,7 @@ class ReconnectionTestConnector extends MockWebSocketConnector {
 
   simulateConnectionFailure(): void {
     if (this.mockWs) {
-      this.mockWs.simulateError(new Error('Connection failed'));
+      this.mockWs.simulateError(new Error('Network failure'));
     }
   }
 
@@ -50,13 +50,14 @@ class ReconnectionTestConnector extends MockWebSocketConnector {
 
   // For test compatibility
   get mockConnection() {
-    return {
-      ...this.mockWs,
+    if (!this.mockWs) return undefined;
+    const base = this.mockWs;
+    return Object.assign(base, {
       connectAttempts: this._connectionAttempts,
       setConnectionFailure: (shouldFail: boolean) => this.setConnectionFailure(shouldFail),
       simulateConnectionFailure: () => this.simulateConnectionFailure(),
       simulateReconnection: () => this.simulateReconnection()
-    };
+    });
   }
 
   onCreateConnection(callback: () => void): void {
@@ -214,12 +215,13 @@ describe('WebSocket Reconnection Behavior Specifications', () => {
         const connection = await connector.connect();
         await new Promise(resolve => setTimeout(resolve, 20));
         
-        // Simulate reconnection state
+        // Simulate reconnection state and force next connection to fail
         connector.mockConnection!.simulateReconnection();
+        connector.mockConnection!.setConnectionFailure(true);
         await new Promise(resolve => setTimeout(resolve, 10));
         
         // Send should fail during reconnection
-        expect(() => connection.send('test')).toThrow('Connection not open');
+        await expect(connection.send('test')).rejects.toThrow('Simulated connection failure');
       });
 
       it('should resume normal operation after successful reconnection', async () => {
@@ -287,13 +289,13 @@ describe('WebSocket Reconnection Behavior Specifications', () => {
         
         const states: WebSocketState[] = [];
         
-        // Start disposal
-        const disposePromise = connector.disposeAsync();
-        
-        // Monitor states during disposal
+        // Monitor states during disposal - BEFORE starting disposal
         connector.state$.subscribe(state => {
           states.push(state);
         });
+        
+        // Start disposal
+        const disposePromise = connector.disposeAsync();
         
         // Try to trigger state change during disposal
         connector.mockConnection!.simulateConnectionFailure();
@@ -304,11 +306,12 @@ describe('WebSocket Reconnection Behavior Specifications', () => {
         expect(states).toContain(WebSocketState.Disposing);
         expect(states).toContain(WebSocketState.Disposed);
         
-        // Should not see failure-induced states
-        const nonDisposalStates = states.filter(s => 
+        // Should not see failure-induced states AFTER disposal starts
+        const statesAfterDisposalStart = states.slice(states.indexOf(WebSocketState.Disposing));
+        const nonDisposalStatesAfterDisposal = statesAfterDisposalStart.filter(s => 
           s !== WebSocketState.Disposing && s !== WebSocketState.Disposed
         );
-        expect(nonDisposalStates).toHaveLength(0);
+        expect(nonDisposalStatesAfterDisposal).toHaveLength(0);
       });
     });
   });

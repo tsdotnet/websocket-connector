@@ -1,9 +1,19 @@
 {
   "entryPoints": [
-    "./src"
+    "./src/index.ts",
+    "./src/browser.ts", 
+    "./src/node.ts",
+    "./src/mock.ts"
   ],
+  "entryPointStrategy": "resolve",
   "out": "docs",
   "includeVersion": true,
   "excludeExternals": true,
-  "excludePrivate": true
+  "excludePrivate": true,
+  "categorizeByGroup": false,
+  "name": "@tsdotnet/websocket-connector",
+  "navigationLinks": {
+    "GitHub": "https://github.com/tsdotnet/websocket-connector",
+    "npm": "https://www.npmjs.com/package/@tsdotnet/websocket-connector"
+  }
 }

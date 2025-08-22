@@ -53,7 +53,7 @@
     "typecheck:tests": "tsc -p tests/tsconfig.json --noEmit",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",
-    "docs": "rimraf docs && typedoc --options typedoc.json --readme none",
+    "docs": "rimraf docs && npx typedoc --options typedoc.json --readme none",
     "bump": "pnpm run precommit && pnpm version patch",
     "precommit": "pnpm build && pnpm test && pnpm lint && git status -s",
     "preversion": "pnpm lint && pnpm test",

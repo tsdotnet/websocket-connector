@@ -5,7 +5,11 @@ import { readFileSync } from 'node:fs';
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url)));
 
 export default defineConfig({
-  input: 'src/index.ts', // Just use the main entry point
+  input: {
+    'index': 'src/index.ts',
+    'node': 'src/node.ts',
+    'browser': 'src/browser.ts'
+  },
   output: {
     dir: 'dist/esm',
     format: 'es',

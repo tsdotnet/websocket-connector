@@ -4,5 +4,3 @@
  */
 export * from './interfaces';
 export * from './WebSocketConnectorBase';
-export * from './NodeWebSocketConnector';
-export * from './BrowserWebSocketConnector';

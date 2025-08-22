@@ -1,6 +1,6 @@
 {
   "name": "@tsdotnet/websocket-connector",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Universal WebSocket connector base class with connection pooling, virtual connections, and testing utilities",
   "author": "electricessence",
   "license": "MIT",

@@ -1,0 +1,82 @@
+{
+  "name": "@tsdotnet/[package-name]",
+  "version": "1.0.0",
+  "description": "",
+  "author": "electricessence",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/esm/index.js",
+      "require": "./dist/cjs/index.js"
+    }
+  },
+  "types": "./dist/types/index.d.ts",
+  "keywords": [],
+  "scripts": {
+    "clean": "rimraf dist",
+    "build:types": "cpy \"src/**/*.d.ts\" dist/types --parents && tsc -p tsconfig.types.json",
+    "build:esm": "rollup -c rollup.config.js",
+    "build:cjs": "tsc -p tsconfig.cjs.json",
+    "build": "pnpm clean && pnpm build:types && pnpm build:esm && pnpm build:cjs",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "docs": "rimraf docs && typedoc --options typedoc.json --readme none",
+    "bump": "pnpm run precommit && pnpm version patch",
+    "precommit": "pnpm build && pnpm test && pnpm lint && git status -s",
+    "preversion": "pnpm lint && pnpm test",
+    "postversion": "git push && git push --tags && pnpm run docs && git add -A && git commit -m \"Updated docs.\" docs && git push",
+    "prepublishOnly": "pnpm build && pnpm test && pnpm lint"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tsdotnet/[package-name].git"
+  },
+  "bugs": {
+    "url": "https://github.com/tsdotnet/[package-name]/issues"
+  },
+  "homepage": "https://github.com/tsdotnet/[package-name]#readme",
+  "devDependencies": {
+    "@eslint/js": "^9.33.0",
+    "@rollup/plugin-typescript": "^12.1.4",
+    "@types/node": "^24.3.0",
+    "@vitest/coverage-v8": "3.2.4",
+    "cpy-cli": "^6.0.0",
+    "eslint": "^9.33.0",
+    "rimraf": "^6.0.1",
+    "rollup": "^4.46.3",
+    "typedoc": "^0.28.10",
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.40.0",
+    "vitest": "^3.2.4"
+  },
+  "dependencies": {
+    "tslib": "^2.8.1"
+  },
+  "pnpm": {
+    "overrides": {
+      "hosted-git-info@<2.8.9": ">=2.8.9",
+      "y18n@=4.0.0": ">=4.0.1",
+      "lodash@<4.17.20": ">=4.17.20",
+      "shell-quote@<=1.7.2": ">=1.7.3",
+      "lodash@<4.17.21": ">=4.17.21",
+      "json5@<1.0.2": ">=1.0.2",
+      "json5@>=2.0.0 <2.2.2": ">=2.2.2",
+      "minimatch@<3.0.5": ">=3.0.5",
+      "semver@<5.7.2": ">=5.7.2",
+      "semver@>=6.0.0 <6.3.1": ">=6.3.1",
+      "semver@>=7.0.0 <7.5.2": ">=7.5.2",
+      "get-func-name@<2.0.1": ">=2.0.1",
+      "@babel/traverse@<7.23.2": ">=7.23.2",
+      "braces@<3.0.3": ">=3.0.3"
+    },
+    "ignoredBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}

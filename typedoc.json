@@ -1,0 +1,9 @@
+{
+  "entryPoints": [
+    "./src"
+  ],
+  "out": "docs",
+  "includeVersion": true,
+  "excludeExternals": true,
+  "excludePrivate": true
+}

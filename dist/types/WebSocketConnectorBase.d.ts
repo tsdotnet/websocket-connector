@@ -1,0 +1,35 @@
+import { AsyncDisposableBase } from '@tsdotnet/disposable';
+import { Observable } from 'rxjs';
+import { WebSocketConnector, WebSocketConnection, WebSocketMessage, WebSocketOptions, WebSocketState } from './interfaces.js';
+export declare abstract class WebSocketConnectorBase extends AsyncDisposableBase implements WebSocketConnector {
+    protected readonly url: string;
+    protected readonly options: WebSocketOptions;
+    private readonly _virtualConnections;
+    private readonly _state$;
+    private readonly _error$;
+    private readonly _message$;
+    protected _ws: any;
+    constructor(url: string, options?: WebSocketOptions);
+    get state$(): Observable<WebSocketState>;
+    get error$(): Observable<Error>;
+    get message$(): Observable<WebSocketMessage>;
+    get activeVirtualConnections(): number;
+    connect(): Promise<WebSocketConnection>;
+    send(data: WebSocketMessage): void;
+    protected abstract createWebSocket(): any;
+    protected abstract isWebSocketOpen(): boolean;
+    protected abstract sendWebSocketMessage(data: WebSocketMessage): void;
+    protected abstract setupWebSocketListeners(): void;
+    protected abstract closeWebSocket(): Promise<void>;
+    protected updateState(state: WebSocketState): void;
+    protected emitError(error: Error): void;
+    protected emitMessage(message: WebSocketMessage): void;
+    private _ensureWebSocket;
+    private _disconnectWebSocket;
+    protected _onDisposeAsync(): Promise<void>;
+    private _eventHandlers;
+    protected emit(event: string, ...args: any[]): void;
+    private once;
+    private on;
+    private off;
+}

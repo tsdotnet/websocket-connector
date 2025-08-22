@@ -3,15 +3,14 @@
  * @license MIT
  */
 
-import WebSocket from 'ws';
 import { WebSocketMessage, WebSocketState, WebSocketOptions } from './interfaces';
 import { WebSocketConnectorBase } from './WebSocketConnectorBase';
 
 /**
- * Node.js WebSocket connector implementation
- * Uses the 'ws' library for WebSocket connections
+ * Browser WebSocket connector implementation
+ * Uses the native browser WebSocket API
  */
-export class NodeWebSocketConnector extends WebSocketConnectorBase {
+export class BrowserWebSocketConnector extends WebSocketConnectorBase {
   private _webSocket: WebSocket | undefined;
 
   constructor(url: string, options?: WebSocketOptions) {
@@ -35,15 +34,8 @@ export class NodeWebSocketConnector extends WebSocketConnectorBase {
       throw new Error('WebSocket is not open');
     }
 
-    return new Promise<void>((resolve, reject) => {
-      this._webSocket!.send(data, (error) => {
-        if (error) {
-          reject(error);
-        } else {
-          resolve();
-        }
-      });
-    });
+    // Browser WebSocket.send() is synchronous but we return a Promise for consistency
+    this._webSocket.send(data);
   }
 
   protected async _ensureDisconnect(): Promise<void> {
@@ -63,17 +55,18 @@ export class NodeWebSocketConnector extends WebSocketConnectorBase {
       }
 
       const cleanup = () => {
-        this._webSocket?.removeAllListeners();
+        this._webSocket?.removeEventListener('close', onClose);
         resolve();
       };
 
-      this._webSocket.once('close', cleanup);
+      const onClose = () => cleanup();
+      
+      this._webSocket.addEventListener('close', onClose);
       this._webSocket.close(1000, 'Normal closure');
 
       // Force close after timeout
       setTimeout(() => {
         if (this._webSocket && this._webSocket.readyState !== WebSocket.CLOSED) {
-          this._webSocket.terminate();
           cleanup();
         }
       }, 5000);
@@ -82,67 +75,71 @@ export class NodeWebSocketConnector extends WebSocketConnectorBase {
 
   private async _connectWebSocket(): Promise<WebSocketState> {
     return new Promise<WebSocketState>((resolve, reject) => {
-      // Create WebSocket with options
-      const wsOptions: WebSocket.ClientOptions = {};
-
-      if (this.options?.headers) {
-        wsOptions.headers = this.options.headers;
-      }
-
+      // Create WebSocket with protocols if specified
       const ws = this.options?.protocols 
-        ? new WebSocket(this.url, this.options.protocols, wsOptions)
-        : new WebSocket(this.url, wsOptions);
+        ? new WebSocket(this.url, this.options.protocols)
+        : new WebSocket(this.url);
       
       this._webSocket = ws;
 
-      ws.on('open', () => {
+      const onOpen = () => {
+        cleanup();
         this._updateState(WebSocketState.Connected);
         resolve(WebSocketState.Connected);
-      });
+      };
 
-      ws.on('message', (data: WebSocket.RawData) => {
+      const onMessage = (event: MessageEvent) => {
         let message: WebSocketMessage;
         
-        // Handle different data types from ws library
-        if (Buffer.isBuffer(data)) {
-          message = new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
-        } else if (data instanceof ArrayBuffer) {
-          message = new Uint8Array(data);
-        } else if (typeof data === 'string') {
-          message = data;
-        } else if (Array.isArray(data)) {
-          // Handle array of Buffers by concatenating
-          const totalLength = data.reduce((acc, buf) => acc + buf.length, 0);
-          const combined = new Uint8Array(totalLength);
-          let offset = 0;
-          for (const buf of data) {
-            combined.set(new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength), offset);
-            offset += buf.length;
-          }
-          message = combined;
+        // Handle different data types from browser WebSocket
+        if (event.data instanceof ArrayBuffer) {
+          message = new Uint8Array(event.data);
+        } else if (event.data instanceof Blob) {
+          // For Blob data, we'd need to read it asynchronously
+          // For now, convert to string (most common case)
+          event.data.text().then(text => this._emitMessage(text));
+          return;
+        } else if (typeof event.data === 'string') {
+          message = event.data;
         } else {
           // Fallback for other types
-          message = String(data);
+          message = String(event.data);
         }
 
         this._emitMessage(message);
-      });
+      };
 
-      ws.on('close', (code: number, reason: Buffer) => {
+      const onClose = (event: CloseEvent) => {
+        cleanup();
         this._updateState(WebSocketState.Disconnected);
         
         // Only treat non-normal closures as errors
-        if (code !== 1000) {
-          const error = new Error(`WebSocket closed with code ${code}: ${reason.toString()}`);
+        if (event.code !== 1000) {
+          const error = new Error(`WebSocket closed with code ${event.code}: ${event.reason}`);
           this._emitError(error);
         }
-      });
+      };
 
-      ws.on('error', (error: Error) => {
+      const onError = (event: Event) => {
+        cleanup();
         this._updateState(WebSocketState.Disconnected);
+        const error = new Error('WebSocket connection error');
         this._emitError(error);
         reject(error);
-      });
+      };
+
+      const cleanup = () => {
+        ws.removeEventListener('open', onOpen);
+        ws.removeEventListener('message', onMessage);
+        ws.removeEventListener('close', onClose);
+        ws.removeEventListener('error', onError);
+      };
+
+      // Set up event listeners
+      ws.addEventListener('open', onOpen);
+      ws.addEventListener('message', onMessage);
+      ws.addEventListener('close', onClose);
+      ws.addEventListener('error', onError);
 
       // Set connecting state
       this._updateState(WebSocketState.Connecting);

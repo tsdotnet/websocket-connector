@@ -4,7 +4,7 @@
  */
 import { WebSocketMessage, WebSocketState, WebSocketOptions } from './interfaces';
 import { WebSocketConnectorBase } from './WebSocketConnectorBase';
-export declare class NodeWebSocketConnector extends WebSocketConnectorBase {
+export declare class BrowserWebSocketConnector extends WebSocketConnectorBase {
     private _webSocket;
     constructor(url: string, options?: WebSocketOptions);
     protected _ensureConnection(): Promise<WebSocketState>;

@@ -67,5 +67,5 @@ export interface WebSocketConnection extends Disposable {
   /**
    * Send a message through the connection
    */
-  send(data: WebSocketMessage): void;
+  send(data: WebSocketMessage): Promise<void>;
 }

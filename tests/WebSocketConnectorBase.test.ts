@@ -1,48 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { WebSocketConnectorBase, Connection } from '../src/WebSocketConnectorBase.js';
-import { WebSocketMessage, WebSocketState } from '../src/interfaces.js';
-import { BehaviorSubject, Subject } from 'rxjs';
-
-// Mock implementation for testing
-class MockConnection implements Connection {
-  private readonly _state$ = new BehaviorSubject<WebSocketState>(WebSocketState.Disconnected);
-  private readonly _message$ = new Subject<WebSocketMessage>();
-  private readonly _error$ = new Subject<Error>();
-
-  get state$() { return this._state$.asObservable(); }
-  get message$() { return this._message$.asObservable(); }
-  get error$() { return this._error$.asObservable(); }
-
-  async connect(): Promise<void> {
-    this._state$.next(WebSocketState.Connecting);
-    // Simulate connection delay
-    await new Promise(resolve => setTimeout(resolve, 10));
-    this._state$.next(WebSocketState.Connected);
-  }
-
-  send(data: WebSocketMessage): void {
-    if (this._state$.value !== WebSocketState.Connected) {
-      throw new Error('Connection not open');
-    }
-    // Echo the message back for testing
-    setTimeout(() => this._message$.next(data), 1);
-  }
-
-  async disconnect(): Promise<void> {
-    this._state$.next(WebSocketState.Disconnecting);
-    await new Promise(resolve => setTimeout(resolve, 5));
-    this._state$.next(WebSocketState.Disconnected);
-    this._message$.complete();
-    this._error$.complete();
-    this._state$.complete();
-  }
-}
-
-class MockWebSocketConnector extends WebSocketConnectorBase {
-  protected createConnection(): Connection {
-    return new MockConnection();
-  }
-}
+import { WebSocketState } from '../src/interfaces.js';
+import { MockWebSocketConnector } from './MockWebSocketConnector.js';
 
 describe('WebSocketConnectorBase', () => {
   it('should create virtual connections', async () => {
@@ -61,6 +19,9 @@ describe('WebSocketConnectorBase', () => {
     const connection2 = await connector.connect();
     expect(connector.activeVirtualConnections).toBe(2);
 
+    // Simulate connection opening
+    connector.simulateConnection();
+    
     // Wait for physical connection to establish
     await new Promise(resolve => setTimeout(resolve, 50));
     expect(currentState).toBe(WebSocketState.Connected);
@@ -99,7 +60,8 @@ describe('WebSocketConnectorBase', () => {
         }
       });
 
-      // Wait a bit for connection to establish, then send message
+      // Simulate connection and then send message
+      connector.simulateConnection();
       setTimeout(() => {
         connection.send('test message');
       }, 50);

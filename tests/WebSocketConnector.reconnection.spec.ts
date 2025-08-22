@@ -1,80 +1,67 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { firstValueFrom, take } from 'rxjs';
-import { WebSocketConnectorBase, Connection } from '../src/WebSocketConnectorBase.js';
-import { WebSocketMessage, WebSocketState, WebSocketOptions } from '../src/interfaces.js';
-import { BehaviorSubject, Subject } from 'rxjs';
+import { WebSocketConnectorBase } from '../src/WebSocketConnectorBase';
+import { WebSocketMessage, WebSocketState, WebSocketOptions } from '../src/interfaces';
+import { MockWebSocketConnector } from './MockWebSocketConnector';
 
-// Enhanced Mock Connection for reconnection testing
-class ReconnectionMockConnection implements Connection {
-  private readonly _state$ = new BehaviorSubject<WebSocketState>(WebSocketState.Disconnected);
-  private readonly _message$ = new Subject<WebSocketMessage>();
-  private readonly _error$ = new Subject<Error>();
-  private _connectAttempts = 0;
-  private _shouldFailConnection = false;
-
-  get state$() { return this._state$.asObservable(); }
-  get message$() { return this._message$.asObservable(); }
-  get error$() { return this._error$.asObservable(); }
-  get connectAttempts() { return this._connectAttempts; }
-
-  setConnectionFailure(shouldFail: boolean): void {
-    this._shouldFailConnection = shouldFail;
-  }
-
-  async connect(): Promise<void> {
-    this._connectAttempts++;
-    this._state$.next(WebSocketState.Connecting);
-    
-    await new Promise(resolve => setTimeout(resolve, 10));
-    
-    if (this._shouldFailConnection) {
-      this._state$.next(WebSocketState.Disconnected);
-      throw new Error('Connection failed');
-    }
-    
-    this._state$.next(WebSocketState.Connected);
-  }
-
-  send(data: WebSocketMessage): void {
-    if (this._state$.value !== WebSocketState.Connected) {
-      throw new Error('Connection not open');
-    }
-    setTimeout(() => this._message$.next(data), 1);
-  }
-
-  async disconnect(): Promise<void> {
-    this._state$.next(WebSocketState.Disconnecting);
-    await new Promise(resolve => setTimeout(resolve, 5));
-    this._state$.next(WebSocketState.Disconnected);
-  }
-
-  // Test helpers
-  simulateConnectionFailure(): void {
-    this._state$.next(WebSocketState.Disconnected);
-    this._error$.next(new Error('Network failure'));
-  }
-
-  simulateReconnection(): void {
-    this._state$.next(WebSocketState.Reconnecting);
-  }
-}
-
-class ReconnectionTestConnector extends WebSocketConnectorBase {
-  public mockConnection?: ReconnectionMockConnection;
-  private _createConnectionCallback?: () => void;
+class ReconnectionTestConnector extends MockWebSocketConnector {
+  // Enhanced for reconnection testing
+  private _forceFailNextConnection = false;
+  private _connectionAttempts = 0;
 
   constructor(url: string, options: WebSocketOptions = {}) {
     super(url, options);
   }
 
-  protected createConnection(): Connection {
-    this.mockConnection = new ReconnectionMockConnection();
-    this._createConnectionCallback?.();
-    return this.mockConnection;
+  // Override to simulate reconnection failures
+  protected async _ensureConnection(): Promise<WebSocketState> {
+    this._connectionAttempts++;
+    
+    if (this._forceFailNextConnection) {
+      this._forceFailNextConnection = false;
+      throw new Error('Simulated connection failure');
+    }
+    
+    return super._ensureConnection();
+  }
+
+  // Test helpers
+  forceNextConnectionFailure(): void {
+    this._forceFailNextConnection = true;
+  }
+
+  get connectAttempts(): number {
+    return this._connectionAttempts;
+  }
+
+  simulateConnectionFailure(): void {
+    if (this.mockWs) {
+      this.mockWs.simulateError(new Error('Connection failed'));
+    }
+  }
+
+  simulateReconnection(): void {
+    this._updateState(WebSocketState.Reconnecting);
+  }
+
+  setConnectionFailure(shouldFail: boolean): void {
+    this._forceFailNextConnection = shouldFail;
+  }
+
+  // For test compatibility
+  get mockConnection() {
+    return {
+      ...this.mockWs,
+      connectAttempts: this._connectionAttempts,
+      setConnectionFailure: (shouldFail: boolean) => this.setConnectionFailure(shouldFail),
+      simulateConnectionFailure: () => this.simulateConnectionFailure(),
+      simulateReconnection: () => this.simulateReconnection()
+    };
   }
 
   onCreateConnection(callback: () => void): void {
-    this._createConnectionCallback = callback;
+    // For compatibility - can be called but doesn't do much in new architecture
+    callback();
   }
 }
 

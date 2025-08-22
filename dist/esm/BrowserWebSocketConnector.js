@@ -1,4 +1,3 @@
-import WebSocket from 'ws';
 import { WebSocketState } from './interfaces.js';
 import { WebSocketConnectorBase } from './WebSocketConnectorBase.js';
 
@@ -6,7 +5,7 @@ import { WebSocketConnectorBase } from './WebSocketConnectorBase.js';
  * @author electricessence / https://github.com/electricessence/
  * @license MIT
  */
-class NodeWebSocketConnector extends WebSocketConnectorBase {
+class BrowserWebSocketConnector extends WebSocketConnectorBase {
     _webSocket;
     constructor(url, options) {
         super(url, options);
@@ -24,16 +23,7 @@ class NodeWebSocketConnector extends WebSocketConnectorBase {
         if (!this._webSocket || this._webSocket.readyState !== WebSocket.OPEN) {
             throw new Error('WebSocket is not open');
         }
-        return new Promise((resolve, reject) => {
-            this._webSocket.send(data, (error) => {
-                if (error) {
-                    reject(error);
-                }
-                else {
-                    resolve();
-                }
-            });
-        });
+        this._webSocket.send(data);
     }
     async _ensureDisconnect() {
         if (!this._webSocket || this._webSocket.readyState === WebSocket.CLOSED) {
@@ -49,14 +39,14 @@ class NodeWebSocketConnector extends WebSocketConnectorBase {
                 return;
             }
             const cleanup = () => {
-                this._webSocket?.removeAllListeners();
+                this._webSocket?.removeEventListener('close', onClose);
                 resolve();
             };
-            this._webSocket.once('close', cleanup);
+            const onClose = () => cleanup();
+            this._webSocket.addEventListener('close', onClose);
             this._webSocket.close(1000, 'Normal closure');
             setTimeout(() => {
                 if (this._webSocket && this._webSocket.readyState !== WebSocket.CLOSED) {
-                    this._webSocket.terminate();
                     cleanup();
                 }
             }, 5000);
@@ -64,56 +54,57 @@ class NodeWebSocketConnector extends WebSocketConnectorBase {
     }
     async _connectWebSocket() {
         return new Promise((resolve, reject) => {
-            const wsOptions = {};
-            if (this.options?.headers) {
-                wsOptions.headers = this.options.headers;
-            }
             const ws = this.options?.protocols
-                ? new WebSocket(this.url, this.options.protocols, wsOptions)
-                : new WebSocket(this.url, wsOptions);
+                ? new WebSocket(this.url, this.options.protocols)
+                : new WebSocket(this.url);
             this._webSocket = ws;
-            ws.on('open', () => {
+            const onOpen = () => {
+                cleanup();
                 this._updateState(WebSocketState.Connected);
                 resolve(WebSocketState.Connected);
-            });
-            ws.on('message', (data) => {
+            };
+            const onMessage = (event) => {
                 let message;
-                if (Buffer.isBuffer(data)) {
-                    message = new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+                if (event.data instanceof ArrayBuffer) {
+                    message = new Uint8Array(event.data);
                 }
-                else if (data instanceof ArrayBuffer) {
-                    message = new Uint8Array(data);
+                else if (event.data instanceof Blob) {
+                    event.data.text().then(text => this._emitMessage(text));
+                    return;
                 }
-                else if (typeof data === 'string') {
-                    message = data;
-                }
-                else if (Array.isArray(data)) {
-                    const totalLength = data.reduce((acc, buf) => acc + buf.length, 0);
-                    const combined = new Uint8Array(totalLength);
-                    let offset = 0;
-                    for (const buf of data) {
-                        combined.set(new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength), offset);
-                        offset += buf.length;
-                    }
-                    message = combined;
+                else if (typeof event.data === 'string') {
+                    message = event.data;
                 }
                 else {
-                    message = String(data);
+                    message = String(event.data);
                 }
                 this._emitMessage(message);
-            });
-            ws.on('close', (code, reason) => {
+            };
+            const onClose = (event) => {
+                cleanup();
                 this._updateState(WebSocketState.Disconnected);
-                if (code !== 1000) {
-                    const error = new Error(`WebSocket closed with code ${code}: ${reason.toString()}`);
+                if (event.code !== 1000) {
+                    const error = new Error(`WebSocket closed with code ${event.code}: ${event.reason}`);
                     this._emitError(error);
                 }
-            });
-            ws.on('error', (error) => {
+            };
+            const onError = (event) => {
+                cleanup();
                 this._updateState(WebSocketState.Disconnected);
+                const error = new Error('WebSocket connection error');
                 this._emitError(error);
                 reject(error);
-            });
+            };
+            const cleanup = () => {
+                ws.removeEventListener('open', onOpen);
+                ws.removeEventListener('message', onMessage);
+                ws.removeEventListener('close', onClose);
+                ws.removeEventListener('error', onError);
+            };
+            ws.addEventListener('open', onOpen);
+            ws.addEventListener('message', onMessage);
+            ws.addEventListener('close', onClose);
+            ws.addEventListener('error', onError);
             this._updateState(WebSocketState.Connecting);
         });
     }
@@ -122,5 +113,5 @@ class NodeWebSocketConnector extends WebSocketConnectorBase {
     }
 }
 
-export { NodeWebSocketConnector };
-//# sourceMappingURL=NodeWebSocketConnector.js.map
+export { BrowserWebSocketConnector };
+//# sourceMappingURL=BrowserWebSocketConnector.js.map

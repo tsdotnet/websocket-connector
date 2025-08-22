@@ -1,48 +1,25 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { WebSocketConnectorBase, Connection } from '../src/WebSocketConnectorBase.js';
-import { WebSocketMessage, WebSocketState, WebSocketOptions } from '../src/interfaces.js';
+import { WebSocketConnectorBase } from '../src/WebSocketConnectorBase';
+import { WebSocketMessage, WebSocketState, WebSocketOptions } from '../src/interfaces';
+import { MockWebSocketConnector } from './MockWebSocketConnector';
 import { BehaviorSubject, Subject } from 'rxjs';
 
-class ConfigurableConnection implements Connection {
-  private readonly _state$ = new BehaviorSubject<WebSocketState>(WebSocketState.Disconnected);
-  private readonly _message$ = new Subject<WebSocketMessage>();
-  private readonly _error$ = new Subject<Error>();
-  
-  constructor(
-    public readonly url: string,
-    public readonly options: WebSocketOptions
-  ) {}
-
-  get state$() { return this._state$.asObservable(); }
-  get message$() { return this._message$.asObservable(); }
-  get error$() { return this._error$.asObservable(); }
-
-  async connect(): Promise<void> {
-    this._state$.next(WebSocketState.Connecting);
-    await new Promise(resolve => setTimeout(resolve, 10));
-    this._state$.next(WebSocketState.Connected);
+class ConfigurableWebSocketConnector extends MockWebSocketConnector {
+  // Expose internal state for testing configuration
+  get configuredUrl(): string {
+    return this.url;
   }
 
-  send(data: WebSocketMessage): void {
-    if (this._state$.value !== WebSocketState.Connected) {
-      throw new Error('Connection not open');
-    }
-    setTimeout(() => this._message$.next(data), 1);
+  get configuredOptions(): WebSocketOptions {
+    return this.options;
   }
 
-  async disconnect(): Promise<void> {
-    this._state$.next(WebSocketState.Disconnecting);
-    await new Promise(resolve => setTimeout(resolve, 5));
-    this._state$.next(WebSocketState.Disconnected);
-  }
-}
-
-class ConfigurableWebSocketConnector extends WebSocketConnectorBase {
-  public createdConnection?: ConfigurableConnection;
-
-  protected createConnection(): Connection {
-    this.createdConnection = new ConfigurableConnection(this.url, this.options);
-    return this.createdConnection;
+  // For test compatibility
+  get createdConnection() {
+    return {
+      url: this.url,
+      options: this.options
+    };
   }
 }
 

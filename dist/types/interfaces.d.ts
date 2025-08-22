@@ -24,5 +24,5 @@ export interface WebSocketConnector extends AsyncDisposable {
 }
 export interface WebSocketConnection extends Disposable {
     readonly message$: Observable<WebSocketMessage>;
-    send(data: WebSocketMessage): void;
+    send(data: WebSocketMessage): Promise<void>;
 }

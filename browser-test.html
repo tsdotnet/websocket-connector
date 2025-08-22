@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Browser WebSocket Connector Test</title>
+</head>
+<body>
+    <h1>Browser WebSocket Connector Test</h1>
+    <div id="status">Status: Ready</div>
+    <div id="log"></div>
+    
+    <script type="module">
+        import { BrowserWebSocketConnector, WebSocketState } from './dist/esm/index.js';
+        
+        const statusDiv = document.getElementById('status');
+        const logDiv = document.getElementById('log');
+        
+        function log(message) {
+            const div = document.createElement('div');
+            div.textContent = `${new Date().toLocaleTimeString()}: ${message}`;
+            logDiv.appendChild(div);
+            console.log(message);
+        }
+        
+        // Test the browser connector
+        log('Creating BrowserWebSocketConnector...');
+        const connector = new BrowserWebSocketConnector('wss://echo.websocket.org');
+        
+        // Subscribe to state changes
+        connector.state$.subscribe(state => {
+            statusDiv.textContent = `Status: ${state}`;
+            log(`State changed to: ${state}`);
+        });
+        
+        // Subscribe to errors
+        connector.error$.subscribe(error => {
+            log(`Error: ${error.message}`);
+        });
+        
+        // Test connection
+        async function testConnection() {
+            try {
+                log('Creating virtual connection...');
+                const connection = await connector.connect();
+                
+                // Subscribe to messages
+                connection.message$.subscribe(message => {
+                    log(`Received: ${message}`);
+                });
+                
+                // Send a test message
+                log('Sending test message...');
+                await connection.send('Hello from browser!');
+                
+                // Clean up after 5 seconds
+                setTimeout(() => {
+                    log('Disposing connection...');
+                    connection.dispose();
+                    
+                    setTimeout(async () => {
+                        log('Disposing connector...');
+                        await connector.disposeAsync();
+                        log('Test complete!');
+                    }, 1000);
+                }, 5000);
+                
+            } catch (error) {
+                log(`Connection failed: ${error.message}`);
+            }
+        }
+        
+        // Start the test
+        testConnection();
+    </script>
+</body>
+</html>

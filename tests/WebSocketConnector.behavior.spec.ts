@@ -1,65 +1,24 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { firstValueFrom, take, toArray } from 'rxjs';
-import { WebSocketConnectorBase, Connection } from '../src/WebSocketConnectorBase.js';
-import { WebSocketMessage, WebSocketState } from '../src/interfaces.js';
-import { BehaviorSubject, Subject } from 'rxjs';
+import { WebSocketConnectorBase } from '../src/WebSocketConnectorBase';
+import { WebSocketMessage, WebSocketState } from '../src/interfaces';
+import { MockWebSocketConnector } from './MockWebSocketConnector';
 
-// Mock Connection implementation for testing
-class MockConnection implements Connection {
-  private readonly _state$ = new BehaviorSubject<WebSocketState>(WebSocketState.Disconnected);
-  private readonly _message$ = new Subject<WebSocketMessage>();
-  private readonly _error$ = new Subject<Error>();
-  private _isConnecting = false;
-
-  get state$() { return this._state$.asObservable(); }
-  get message$() { return this._message$.asObservable(); }
-  get error$() { return this._error$.asObservable(); }
-
-  async connect(): Promise<void> {
-    if (this._isConnecting) return;
-    this._isConnecting = true;
-    
-    this._state$.next(WebSocketState.Connecting);
-    await new Promise(resolve => setTimeout(resolve, 10));
-    this._state$.next(WebSocketState.Connected);
+class TestableWebSocketConnector extends MockWebSocketConnector {
+  // Expose internal state for testing
+  get activeVirtualConnections(): number {
+    return (this as any)._virtualConnections.size;
   }
 
-  send(data: WebSocketMessage): void {
-    if (this._state$.value !== WebSocketState.Connected) {
-      throw new Error('Connection not open');
-    }
-    // Echo messages back for testing
-    setTimeout(() => this._message$.next(data), 1);
-  }
-
-  async disconnect(): Promise<void> {
-    this._state$.next(WebSocketState.Disconnecting);
-    await new Promise(resolve => setTimeout(resolve, 5));
-    this._state$.next(WebSocketState.Disconnected);
-    this._isConnecting = false;
-  }
-
-  // Test helpers
-  simulateMessage(message: WebSocketMessage): void {
-    this._message$.next(message);
-  }
-
-  simulateError(error: Error): void {
-    this._error$.next(error);
-  }
-
-  simulateDisconnection(): void {
-    this._state$.next(WebSocketState.Disconnected);
-    this._isConnecting = false;
-  }
-}
-
-class TestableWebSocketConnector extends WebSocketConnectorBase {
-  public mockConnection?: MockConnection;
-
-  protected createConnection(): Connection {
-    this.mockConnection = new MockConnection();
-    return this.mockConnection;
+  // For test compatibility, create a bridge object
+  get mockConnection() {
+    return this.mockWs ? {
+      ...this.mockWs,
+      simulateMessage: (message: WebSocketMessage) => this.simulateMessage(message),
+      simulateError: (error: Error) => this.simulateError(error),
+      simulateDisconnection: () => this.simulateDisconnection(),
+      send: (data: WebSocketMessage) => this.mockWs?.send(data)
+    } : undefined;
   }
 }
 

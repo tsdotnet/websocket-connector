@@ -1,7 +1,6 @@
 import { AsyncDisposableBase, DisposableBase } from '@tsdotnet/disposable';
-import { BehaviorSubject, Observable, Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
-import { WebSocketConnector, WebSocketConnection, WebSocketMessage, WebSocketOptions, WebSocketState } from './interfaces.js';
+import { BehaviorSubject, Observable, Subject, type Subscription } from 'rxjs';
+import { WebSocketConnector, WebSocketConnection, WebSocketMessage, WebSocketOptions, WebSocketState } from './interfaces';
 
 /**
  * Virtual WebSocket connection that wraps the connector's underlying WebSocket
@@ -9,37 +8,33 @@ import { WebSocketConnector, WebSocketConnection, WebSocketMessage, WebSocketOpt
  */
 class VirtualWebSocketConnection extends DisposableBase implements WebSocketConnection {
   private readonly _message$ = new Subject<WebSocketMessage>();
-  private readonly _dispose$ = new Subject<void>();
+  private readonly _subscription: Subscription;
 
   readonly message$: Observable<WebSocketMessage>;
 
   constructor(
     private readonly _connector: WebSocketConnectorBase,
+    private readonly _sendFn: (data: WebSocketMessage) => Promise<void>,
     private readonly _onDisposeCallback: () => void
   ) {
     super();
-    
+
     this.message$ = this._message$.asObservable();
-    
+
     // Forward messages from connector to this virtual connection
-    this._connector.message$.pipe(
-      takeUntil(this._dispose$)
-    ).subscribe({
+    this._subscription = this._connector.message$.subscribe({
       next: (message) => this._message$.next(message),
       complete: () => this._message$.complete()
     });
   }
 
-  send(data: WebSocketMessage): void {
-    if (this.wasDisposed) {
-      throw new Error('Cannot send data through disposed connection');
-    }
-    this._connector.send(data);
+  async send(data: WebSocketMessage): Promise<void> {
+    this.assertIsAlive();
+    await this._sendFn(data);
   }
 
   protected _onDispose(): void {
-    this._dispose$.next();
-    this._dispose$.complete();
+    this._subscription.unsubscribe();
     this._message$.complete();
     this._onDisposeCallback();
   }
@@ -55,34 +50,57 @@ export abstract class WebSocketConnectorBase extends AsyncDisposableBase impleme
   private readonly _state$ = new BehaviorSubject<WebSocketState>(WebSocketState.Disconnected);
   private readonly _error$ = new Subject<Error>();
   private readonly _message$ = new Subject<WebSocketMessage>();
-  protected _ws: any = undefined; // Platform-specific WebSocket instance
+  private _idleTimeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  /**
+   * Observable stream of connection state changes
+   */
+  readonly state$: Observable<WebSocketState>;
+
+  /**
+   * Observable stream of connection-level errors
+   */
+  readonly error$: Observable<Error>;
+
+  /**
+   * Observable stream of incoming messages (internal use)
+   */
+  readonly message$: Observable<WebSocketMessage>;
+
+  /**
+   * Update state from connector
+   */
+  protected _updateState(state: WebSocketState): void {
+    // Only update if we're not in disposal states
+    if (this._state$.value !== WebSocketState.Disposing && this._state$.value !== WebSocketState.Disposed) {
+      this._state$.next(state);
+    }
+  }
+
+  /**
+   * Emit error from connector
+   */
+  protected _emitError(error: Error): void {
+    this._error$.next(error);
+  }
+
+  /**
+   * Emit message from connector
+   */
+  protected _emitMessage(message: WebSocketMessage): void {
+    this._message$.next(message);
+  }
 
   constructor(
     protected readonly url: string,
     protected readonly options: WebSocketOptions = {}
   ) {
     super();
-  }
 
-  /**
-   * Observable stream of connection state changes
-   */
-  get state$(): Observable<WebSocketState> {
-    return this._state$.asObservable();
-  }
-
-  /**
-   * Observable stream of connection-level errors
-   */
-  get error$(): Observable<Error> {
-    return this._error$.asObservable();
-  }
-
-  /**
-   * Observable stream of incoming messages (internal use)
-   */
-  get message$(): Observable<WebSocketMessage> {
-    return this._message$.asObservable();
+    // Create readonly observables once in constructor
+    this.state$ = this._state$.asObservable();
+    this.error$ = this._error$.asObservable();
+    this.message$ = this._message$.asObservable();
   }
 
   /**
@@ -96,23 +114,25 @@ export abstract class WebSocketConnectorBase extends AsyncDisposableBase impleme
    * Create a virtual connection. Underlying WebSocket is created lazily on first call.
    */
   async connect(): Promise<WebSocketConnection> {
-    if (this.wasDisposed || this._state$.value === WebSocketState.Disposing) {
-      throw new Error('Cannot create connections from disposed connector');
-    }
+    this.assertIsAlive();
+
+    // Cancel any pending idle disconnect since we're creating a new connection
+    this._cancelIdleDisconnect();
 
     // Ensure underlying WebSocket exists
-    if (!this._ws) {
-      await this._ensureWebSocket();
+    if (this._state$.value !== WebSocketState.Connected) {
+      await this._connect();
     }
 
     // Create virtual connection
     const virtualConnection = new VirtualWebSocketConnection(
       this,
+      (data: WebSocketMessage) => this._send(data),
       () => {
         this._virtualConnections.delete(virtualConnection);
-        // If no more virtual connections and not disposed, disconnect underlying WebSocket
-        if (this._virtualConnections.size === 0 && !this.wasDisposed && this._state$.value !== WebSocketState.Disposing) {
-          this._disconnectWebSocket();
+        // If no more virtual connections, start idle timeout
+        if (this._virtualConnections.size === 0) {
+          this._scheduleIdleDisconnect();
         }
       }
     );
@@ -122,195 +142,140 @@ export abstract class WebSocketConnectorBase extends AsyncDisposableBase impleme
   }
 
   /**
-   * Send data through the underlying WebSocket
+   * Send data through the underlying WebSocket (private - used by virtual connections)
    */
-  send(data: WebSocketMessage): void {
-    if (!this._ws || !this.isWebSocketOpen()) {
-      throw new Error('WebSocket is not connected');
+  private async _send(data: WebSocketMessage): Promise<void> {
+    this.assertIsAlive();
+
+    // Ensure we're connected, wait for connection if needed
+    if (this._state$.value !== WebSocketState.Connected) {
+      await this._connect();
     }
-    this.sendWebSocketMessage(data);
+
+    // Double-check after potential connection attempt
+    if (this._state$.value !== WebSocketState.Connected) {
+      throw new Error('WebSocket failed to connect.');
+    }
+
+    await this._sendMessage(data);
   }
 
   /**
-   * Create platform-specific WebSocket instance
+   * Schedule idle disconnect after a short timeout
    */
-  protected abstract createWebSocket(): any;
+  private _scheduleIdleDisconnect(): void {
+    // Only schedule if we're in a state where we want to be connected
+    if (!this.targetState) {
+      return;
+    }
+
+    // Cancel any existing timeout
+    this._cancelIdleDisconnect();
+
+    // Use a short default timeout of 1 second if not specified
+    const idleTimeout = this.options.idleTimeout ?? 1000;
+
+    this._idleTimeoutId = setTimeout(() => {
+      this._idleTimeoutId = undefined;
+      // Double-check we still have no virtual connections before disconnecting
+      if (this._virtualConnections.size === 0 && !this.wasDisposed && this._state$.value !== WebSocketState.Disposing) {
+        this._disconnect();
+      }
+    }, idleTimeout);
+  }
 
   /**
-   * Check if the WebSocket is open/connected
+   * Cancel any pending idle disconnect
    */
-  protected abstract isWebSocketOpen(): boolean;
-
-  /**
-   * Send message through platform-specific WebSocket
-   */
-  protected abstract sendWebSocketMessage(data: WebSocketMessage): void;
-
-  /**
-   * Setup WebSocket event listeners
-   */
-  protected abstract setupWebSocketListeners(): void;
-
-  /**
-   * Close the platform-specific WebSocket
-   */
-  protected abstract closeWebSocket(): Promise<void>;
-
-  /**
-   * Update state from connector
-   */
-  protected updateState(state: WebSocketState): void {
-    // Only update if we're not in disposal states
-    if (this._state$.value !== WebSocketState.Disposing && this._state$.value !== WebSocketState.Disposed) {
-      this._state$.next(state);
+  private _cancelIdleDisconnect(): void {
+    const t = this._idleTimeoutId;
+    if (t !== undefined) {
+      this._idleTimeoutId = undefined;
+      clearTimeout(t);
     }
   }
 
-  /**
-   * Emit error from connector
-   */
-  protected emitError(error: Error): void {
-    this._error$.next(error);
-  }
+  protected abstract _ensureConnection(): Promise<WebSocketState>
 
-  /**
-   * Emit message from connector
-   */
-  protected emitMessage(message: WebSocketMessage): void {
-    this._message$.next(message);
-  }
+  protected abstract _sendMessage(data: WebSocketMessage): Promise<void>;
+
+  protected abstract _ensureDisconnect(): Promise<void>;
 
   /**
    * Ensure underlying WebSocket exists and is connected
    */
-  private async _ensureWebSocket(): Promise<void> {
-    if (this._ws) {
+  private async _connect(): Promise<void> {
+    if (this._state$.value === WebSocketState.Connected) {
       return;
     }
 
+    const d = this._disconnecting;
+    if (d) await d;
+
+    this.assertIsAlive();
+
     this._state$.next(WebSocketState.Connecting);
-    
+
     try {
-      this._ws = this.createWebSocket();
-      this.setupWebSocketListeners();
-      
-      // Wait for connection to be established
-      await new Promise<void>((resolve, reject) => {
-        const timeout = this.options.idleTimeout;
-        let timeoutId: NodeJS.Timeout | undefined;
-
-        const cleanup = () => {
-          if (timeoutId) clearTimeout(timeoutId);
-        };
-
-        const onOpen = () => {
-          cleanup();
-          this._state$.next(WebSocketState.Connected);
-          resolve();
-        };
-
-        const onError = (error: Error) => {
-          cleanup();
-          this._state$.next(WebSocketState.Disconnected);
-          reject(error);
-        };
-
-        // Set up one-time listeners for connection establishment
-        this.once('ws-open', onOpen);
-        this.once('ws-error', onError);
-
-        if (timeout) {
-          timeoutId = setTimeout(() => {
-            this.off('ws-open', onOpen);
-            this.off('ws-error', onError);
-            onError(new Error('Connection timeout'));
-          }, timeout);
-        }
-      });
-
+      this._state$.next(await this._ensureConnection());
     } catch (error) {
       this._state$.next(WebSocketState.Disconnected);
-      delete this._ws;
       throw error;
     }
   }
 
+  protected get targetState(): boolean {
+    switch (this._state$.value) {
+      case WebSocketState.Connecting:
+      case WebSocketState.Reconnecting:
+      case WebSocketState.Connected:
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  private _disconnecting?: Promise<void> | null | undefined;
+
   /**
    * Disconnect underlying WebSocket
    */
-  private async _disconnectWebSocket(): Promise<void> {
-    if (!this._ws) {
-      return;
-    }
+  private async _disconnect(): Promise<void> {
+    const d = this._disconnecting;
+    if (d) return d;
 
     this._state$.next(WebSocketState.Disconnecting);
-    
-    try {
-      await this.closeWebSocket();
-    } finally {
-      delete this._ws;
-      if (this._state$.value !== WebSocketState.Disposing) {
-        this._state$.next(WebSocketState.Disconnected);
-      }
-    }
+
+    // If this fails, we're in serious trouble.
+    // closeWebSocket needs to be robust.
+    await (this._disconnecting = this._ensureDisconnect());
+    this._disconnecting = null;
+
+    this._state$.next(WebSocketState.Disconnected);
   }
 
   /**
    * Dispose of all connections and resources
    */
   protected async _onDisposeAsync(): Promise<void> {
+    this._message$.complete();
+    this._error$.complete();
+
+    // First fire a disconnect so that any listeners can handle that.
+    await this._disconnect();
+
+    // After the guarantee of disconnection, proceed with disposal.
     this._state$.next(WebSocketState.Disposing);
 
     // Dispose all virtual connections
     const connections = Array.from(this._virtualConnections);
     for (const connection of connections) {
+      // Disposing of a connection removes it from the set
       connection.dispose();
-    }
-    this._virtualConnections.clear();
-
-    // Disconnect underlying WebSocket
-    if (this._ws) {
-      await this._disconnectWebSocket();
     }
 
     this._state$.next(WebSocketState.Disposed);
     this._state$.complete();
-    this._error$.complete();
-    this._message$.complete();
   }
 
-  // Simple event system for internal WebSocket events
-  private _eventHandlers = new Map<string, Function[]>();
-
-  protected emit(event: string, ...args: any[]): void {
-    const handlers = this._eventHandlers.get(event);
-    if (handlers) {
-      handlers.forEach(handler => handler(...args));
-    }
-  }
-
-  private once(event: string, handler: Function): void {
-    const onceHandler = (...args: any[]) => {
-      handler(...args);
-      this.off(event, onceHandler);
-    };
-    this.on(event, onceHandler);
-  }
-
-  private on(event: string, handler: Function): void {
-    if (!this._eventHandlers.has(event)) {
-      this._eventHandlers.set(event, []);
-    }
-    this._eventHandlers.get(event)!.push(handler);
-  }
-
-  private off(event: string, handler: Function): void {
-    const handlers = this._eventHandlers.get(event);
-    if (handlers) {
-      const index = handlers.indexOf(handler);
-      if (index !== -1) {
-        handlers.splice(index, 1);
-      }
-    }
-  }
 }

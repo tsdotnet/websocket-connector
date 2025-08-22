@@ -50,6 +50,7 @@ class WebSocketConnectorBase extends disposable_1.AsyncDisposableBase {
         this._state$ = new rxjs_1.BehaviorSubject(interfaces_1.WebSocketState.Disconnected);
         this._error$ = new rxjs_1.Subject();
         this._message$ = new rxjs_1.Subject();
+        this._currentAttempt = 0;
         this.state$ = this._state$.asObservable();
         this.error$ = this._error$.asObservable();
         this.message$ = this._message$.asObservable();
@@ -88,7 +89,7 @@ class WebSocketConnectorBase extends disposable_1.AsyncDisposableBase {
             return;
         }
         this._cancelIdleDisconnect();
-        const idleTimeout = (_a = this.options.idleTimeout) !== null && _a !== void 0 ? _a : 1000;
+        const idleTimeout = (_a = this.options.idleTimeoutMs) !== null && _a !== void 0 ? _a : 10000;
         this._idleTimeoutId = setTimeout(() => {
             this._idleTimeoutId = undefined;
             if (this._virtualConnections.size === 0 && !this.wasDisposed && this._state$.value !== interfaces_1.WebSocketState.Disposing) {
@@ -101,6 +102,32 @@ class WebSocketConnectorBase extends disposable_1.AsyncDisposableBase {
         if (t !== undefined) {
             this._idleTimeoutId = undefined;
             clearTimeout(t);
+        }
+    }
+    _handleConnectionFailure(error) {
+        var _a;
+        this._emitError(error);
+        const requestedAttempts = (_a = this.options.reconnectAttempts) !== null && _a !== void 0 ? _a : 0;
+        const maxAttempts = Math.min(requestedAttempts, 10);
+        if (maxAttempts > 0 && this._currentAttempt < maxAttempts && this._virtualConnections.size > 0) {
+            this._state$.next(interfaces_1.WebSocketState.Reconnecting);
+            this._currentAttempt++;
+            const delay = Math.min(1000 * Math.pow(2, this._currentAttempt - 1), 30000);
+            setTimeout(async () => {
+                if (this._virtualConnections.size > 0 && !this.wasDisposed) {
+                    try {
+                        await this._connect();
+                        this._currentAttempt = 0;
+                    }
+                    catch (reconnectError) {
+                        this._handleConnectionFailure(reconnectError);
+                    }
+                }
+            }, delay);
+        }
+        else {
+            this._state$.next(interfaces_1.WebSocketState.Disconnected);
+            this._currentAttempt = 0;
         }
     }
     async _connect() {

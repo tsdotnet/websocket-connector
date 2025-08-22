@@ -75,10 +75,10 @@ describe('WebSocket Reconnection Behavior Specifications', () => {
     }
   });
 
-  describe('Given reconnectOnFailure is FALSE (default)', () => {
+  describe('Given reconnectAttempts is 0 (default)', () => {
     beforeEach(() => {
       connector = new ReconnectionTestConnector('ws://test.example.com', {
-        reconnectOnFailure: false
+        reconnectAttempts: 0
       });
     });
 
@@ -151,10 +151,10 @@ describe('WebSocket Reconnection Behavior Specifications', () => {
     });
   });
 
-  describe('Given reconnectOnFailure is TRUE', () => {
+  describe('Given reconnectAttempts is 3', () => {
     beforeEach(() => {
       connector = new ReconnectionTestConnector('ws://test.example.com', {
-        reconnectOnFailure: true
+        reconnectAttempts: 3
       });
     });
 
@@ -319,7 +319,7 @@ describe('WebSocket Reconnection Behavior Specifications', () => {
   describe('Given Connection Pooling with Reconnection', () => {
     beforeEach(() => {
       connector = new ReconnectionTestConnector('ws://test.example.com', {
-        reconnectOnFailure: true
+        reconnectAttempts: 2
       });
     });
 
@@ -350,6 +350,41 @@ describe('WebSocket Reconnection Behavior Specifications', () => {
         
         expect(connector.activeVirtualConnections).toBe(1);
       });
+    });
+  });
+
+  describe('Given maximum attempts limit', () => {
+    it('should cap reconnection attempts at 10 even if higher number is specified', async () => {
+      const connector = new ReconnectionTestConnector('ws://test.example.com', {
+        reconnectAttempts: 1000 // Request way too many
+      });
+      
+      const connection = await connector.connect();
+      expect(connector.activeVirtualConnections).toBe(1);
+      
+      let errorCount = 0;
+      connector.error$.subscribe(() => {
+        errorCount++;
+      });
+      
+      // Force connection failures continuously
+      const forceFailures = () => {
+        connector.forceNextConnectionFailure();
+        setTimeout(forceFailures, 5); // Keep forcing failures
+      };
+      forceFailures();
+      
+      // Simulate initial failure
+      connector.simulateConnectionFailure();
+      
+      // Wait for all attempts to complete (should be capped at 10)
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Should have stopped at 10 attempts, not continued to 1000
+      expect(errorCount).toBeLessThanOrEqual(11); // Initial + max 10 retries
+      
+      await connection.dispose();
+      await connector.disposeAsync();
     });
   });
 });

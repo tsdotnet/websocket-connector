@@ -41,6 +41,7 @@ class WebSocketConnectorBase extends AsyncDisposableBase {
     _error$ = new Subject();
     _message$ = new Subject();
     _idleTimeoutId;
+    _currentAttempt = 0;
     state$;
     error$;
     message$;
@@ -96,7 +97,7 @@ class WebSocketConnectorBase extends AsyncDisposableBase {
             return;
         }
         this._cancelIdleDisconnect();
-        const idleTimeout = this.options.idleTimeout ?? 1000;
+        const idleTimeout = this.options.idleTimeoutMs ?? 10000;
         this._idleTimeoutId = setTimeout(() => {
             this._idleTimeoutId = undefined;
             if (this._virtualConnections.size === 0 && !this.wasDisposed && this._state$.value !== WebSocketState.Disposing) {
@@ -109,6 +110,31 @@ class WebSocketConnectorBase extends AsyncDisposableBase {
         if (t !== undefined) {
             this._idleTimeoutId = undefined;
             clearTimeout(t);
+        }
+    }
+    _handleConnectionFailure(error) {
+        this._emitError(error);
+        const requestedAttempts = this.options.reconnectAttempts ?? 0;
+        const maxAttempts = Math.min(requestedAttempts, 10);
+        if (maxAttempts > 0 && this._currentAttempt < maxAttempts && this._virtualConnections.size > 0) {
+            this._state$.next(WebSocketState.Reconnecting);
+            this._currentAttempt++;
+            const delay = Math.min(1000 * Math.pow(2, this._currentAttempt - 1), 30000);
+            setTimeout(async () => {
+                if (this._virtualConnections.size > 0 && !this.wasDisposed) {
+                    try {
+                        await this._connect();
+                        this._currentAttempt = 0;
+                    }
+                    catch (reconnectError) {
+                        this._handleConnectionFailure(reconnectError);
+                    }
+                }
+            }, delay);
+        }
+        else {
+            this._state$.next(WebSocketState.Disconnected);
+            this._currentAttempt = 0;
         }
     }
     async _connect() {

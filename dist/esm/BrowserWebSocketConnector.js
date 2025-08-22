@@ -82,17 +82,18 @@ class BrowserWebSocketConnector extends WebSocketConnectorBase {
             };
             const onClose = (event) => {
                 cleanup();
-                this._updateState(WebSocketState.Disconnected);
                 if (event.code !== 1000) {
                     const error = new Error(`WebSocket closed with code ${event.code}: ${event.reason}`);
-                    this._emitError(error);
+                    this._handleConnectionFailure(error);
+                }
+                else {
+                    this._updateState(WebSocketState.Disconnected);
                 }
             };
             const onError = () => {
                 cleanup();
-                this._updateState(WebSocketState.Disconnected);
                 const error = new Error('WebSocket connection error');
-                this._emitError(error);
+                this._handleConnectionFailure(error);
                 reject(error);
             };
             const cleanup = () => {

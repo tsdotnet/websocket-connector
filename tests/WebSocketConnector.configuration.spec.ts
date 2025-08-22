@@ -98,28 +98,28 @@ describe('WebSocket Configuration Specifications', () => {
     describe('When creating connector with idle timeout', () => {
       beforeEach(() => {
         connector = new ConfigurableWebSocketConnector('wss://api.example.com/websocket', {
-          idleTimeout: 60000 // 1 minute
+          idleTimeoutMs: 60000 // 1 minute
         });
       });
 
       it('should pass idle timeout configuration', async () => {
         await connector.connect();
         
-        expect(connector.createdConnection!.options.idleTimeout).toBe(60000);
+        expect(connector.createdConnection!.options.idleTimeoutMs).toBe(60000);
       });
     });
 
     describe('When creating connector with reconnection settings', () => {
       beforeEach(() => {
         connector = new ConfigurableWebSocketConnector('wss://api.example.com/websocket', {
-          reconnectOnFailure: true
+          reconnectAttempts: 3
         });
       });
 
       it('should pass reconnection configuration', async () => {
         await connector.connect();
         
-        expect(connector.createdConnection!.options.reconnectOnFailure).toBe(true);
+        expect(connector.createdConnection!.options.reconnectAttempts).toBe(3);
       });
     });
 
@@ -132,8 +132,8 @@ describe('WebSocket Configuration Specifications', () => {
             'X-API-Key': 'api-key-123',
             'X-Client-ID': 'client-456'
           },
-          idleTimeout: 120000,
-          reconnectOnFailure: true
+          idleTimeoutMs: 120000,
+          reconnectAttempts: 5
         });
       });
 
@@ -148,8 +148,8 @@ describe('WebSocket Configuration Specifications', () => {
           'X-API-Key': 'api-key-123',
           'X-Client-ID': 'client-456'
         });
-        expect(options.idleTimeout).toBe(120000);
-        expect(options.reconnectOnFailure).toBe(true);
+        expect(options.idleTimeoutMs).toBe(120000);
+        expect(options.reconnectAttempts).toBe(5);
       });
 
       it('should work with complex URL structures', async () => {
@@ -257,8 +257,8 @@ describe('WebSocket Configuration Specifications', () => {
         const options = connector.createdConnection!.options;
         expect(options.protocols).toBe('test-protocol');
         expect(options.headers).toBeUndefined();
-        expect(options.idleTimeout).toBeUndefined();
-        expect(options.reconnectOnFailure).toBeUndefined();
+        expect(options.idleTimeoutMs).toBeUndefined();
+        expect(options.reconnectAttempts).toBeUndefined();
       });
     });
   });

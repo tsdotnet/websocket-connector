@@ -36,7 +36,7 @@ describe('WebSocketConnectorBase Edge Cases', () => {
   let connector: EdgeCaseTestConnector;
 
   beforeEach(() => {
-    connector = new EdgeCaseTestConnector('ws://test', { idleTimeout: 50 });
+    connector = new EdgeCaseTestConnector('ws://test', { idleTimeoutMs: 50 });
   });
 
   afterEach(async () => {
@@ -76,7 +76,7 @@ describe('WebSocketConnectorBase Edge Cases', () => {
 
     it('should trigger idle disconnect when timeout fires', async () => {
       // Use a very short timeout
-      const shortConnector = new EdgeCaseTestConnector('ws://test', { idleTimeout: 10 });
+      const shortConnector = new EdgeCaseTestConnector('ws://test', { idleTimeoutMs: 10 });
       
       const vc = await shortConnector.connect();
       

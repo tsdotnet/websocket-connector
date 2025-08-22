@@ -12,8 +12,8 @@ export declare enum WebSocketState {
 export interface WebSocketOptions {
     protocols?: string | string[];
     headers?: Record<string, string>;
-    idleTimeout?: number;
-    reconnectOnFailure?: boolean;
+    idleTimeoutMs?: number;
+    reconnectAttempts?: number;
 }
 export type WebSocketMessage = string | ArrayBuffer | Uint8Array;
 export interface WebSocketConnector extends AsyncDisposable {

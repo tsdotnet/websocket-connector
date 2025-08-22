@@ -58,8 +58,8 @@ import { NodeWebSocketConnector } from '@tsdotnet/websocket-connector/node';
 const connector = new NodeWebSocketConnector('ws://localhost:8080', {
   headers: { 'Authorization': 'Bearer token123' },
   protocols: ['v1', 'v2'],
-  idleTimeout: 30000, // 30 seconds
-  reconnectOnFailure: true
+  idleTimeoutMs: 30000, // 30 seconds
+  reconnectAttempts: 3 // Try to reconnect up to 3 times on failure
 });
 
 const connection = await connector.connect();
@@ -162,11 +162,11 @@ interface WebSocketOptions {
   /** Custom headers (Node.js only) */
   headers?: Record<string, string>;
   
-  /** Idle timeout in milliseconds (default: 5000ms) */
-  idleTimeout?: number;
+  /** Idle timeout in milliseconds (default: 10000ms) */
+  idleTimeoutMs?: number;
   
-  /** Auto-reconnect on connection failure (default: false) */
-  reconnectOnFailure?: boolean;
+  /** Number of reconnection attempts on failure (default: 0) */
+  reconnectAttempts?: number;
 }
 
 const connector = new NodeWebSocketConnector('ws://localhost:8080', {
@@ -175,18 +175,18 @@ const connector = new NodeWebSocketConnector('ws://localhost:8080', {
     'Authorization': 'Bearer your-token',
     'User-Agent': 'MyApp/1.0'
   },
-  idleTimeout: 60000, // 1 minute
-  reconnectOnFailure: true
+  idleTimeoutMs: 60000, // 1 minute
+  reconnectAttempts: 5 // Try up to 5 times with exponential backoff
 });
 ```
 
 ## 🔄 Reconnection Behavior
 
-When `reconnectOnFailure: true` is enabled:
+When `reconnectAttempts` is set to a value greater than 0:
 
 ```typescript
 const connector = new BrowserWebSocketConnector('wss://api.example.com/ws', {
-  reconnectOnFailure: true
+  reconnectAttempts: 3 // Try up to 3 times with exponential backoff
 });
 
 const connection = await connector.connect();
@@ -207,12 +207,19 @@ connection.subscribe(message => {
 });
 ```
 
+**Reconnection Strategy:**
+- **Exponential Backoff**: 1s, 2s, 4s, 8s, 16s, max 30s
+- **Maximum Attempts**: Capped at 10 attempts to prevent abuse
+- **Virtual Connection Preservation**: All virtual connections remain alive during reconnection attempts
+- **Automatic State Management**: Transitions between `Connected` → `Reconnecting` → `Connected` or `Disconnected`
+- **Configurable Attempts**: Set `reconnectAttempts: 0` to disable reconnection entirely
+
 ## 🏗️ Advanced Usage
 
 ### Message Filtering and Routing
 
 ```typescript
-import { filter, map } from 'rxjs/operators';
+import { filter, map } from 'rxjs';
 
 const connector = new BrowserWebSocketConnector('wss://api.example.com/ws');
 const connection = await connector.connect();
@@ -368,7 +375,7 @@ describe('Advanced WebSocket testing', () => {
 describe('Reconnection testing', () => {
   it('should maintain virtual connections during reconnection', async () => {
     const mockConnector = new MockWebSocketConnector('ws://test', {
-      reconnectOnFailure: true
+      reconnectAttempts: 3
     });
     
     const connection1 = await mockConnector.connect();

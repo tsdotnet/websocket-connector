@@ -27,8 +27,8 @@ export interface WebSocketOptions {
   /** Idle timeout in milliseconds before disconnecting when no virtual connections are active (default: 10000ms) */
   idleTimeoutMs?: number;
   
-  /** Auto-reconnect on connection failure (default: false) */
-  reconnectOnFailure?: boolean;
+  /** Number of reconnection attempts on connection failure (default: 0, max: 10) */
+  reconnectAttempts?: number;
 }
 
 /**

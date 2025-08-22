@@ -108,15 +108,16 @@ class NodeWebSocketConnector extends WebSocketConnectorBase_1.WebSocketConnector
                 this._emitMessage(message);
             });
             ws.on('close', (code, reason) => {
-                this._updateState(interfaces_1.WebSocketState.Disconnected);
                 if (code !== 1000) {
                     const error = new Error(`WebSocket closed with code ${code}: ${reason.toString()}`);
-                    this._emitError(error);
+                    this._handleConnectionFailure(error);
+                }
+                else {
+                    this._updateState(interfaces_1.WebSocketState.Disconnected);
                 }
             });
             ws.on('error', (error) => {
-                this._updateState(interfaces_1.WebSocketState.Disconnected);
-                this._emitError(error);
+                this._handleConnectionFailure(error);
                 reject(error);
             });
             this._updateState(interfaces_1.WebSocketState.Connecting);

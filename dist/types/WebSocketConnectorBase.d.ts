@@ -9,6 +9,7 @@ export declare abstract class WebSocketConnectorBase extends AsyncDisposableBase
     private readonly _error$;
     private readonly _message$;
     private _idleTimeoutId;
+    private _currentAttempt;
     readonly state$: Observable<WebSocketState>;
     readonly error$: Observable<Error>;
     readonly message$: Observable<WebSocketMessage>;
@@ -21,6 +22,7 @@ export declare abstract class WebSocketConnectorBase extends AsyncDisposableBase
     private _send;
     private _scheduleIdleDisconnect;
     private _cancelIdleDisconnect;
+    protected _handleConnectionFailure(error: Error): void;
     protected abstract _ensureConnection(): Promise<WebSocketState>;
     protected abstract _sendMessage(data: WebSocketMessage): Promise<void>;
     protected abstract _ensureDisconnect(): Promise<void>;

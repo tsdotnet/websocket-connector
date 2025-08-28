@@ -7,3 +7,4 @@ export * from './interfaces';
 export * from './WebSocketConnectorBase';
 export { NodeWebSocketConnector } from './NodeWebSocketConnector';
 export { BrowserWebSocketConnector } from './BrowserWebSocketConnector';
+export { MockWebSocketConnector } from './MockWebSocketConnector';

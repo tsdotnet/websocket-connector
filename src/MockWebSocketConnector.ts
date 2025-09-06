@@ -149,9 +149,9 @@ export class MockWebSocket {
 	}
 
 	/**
-   * Simulates a WebSocket error.
-   * @param error The error to simulate
-   */
+	 * Simulates a WebSocket error.
+	 * @param error The error to simulate
+	 */
 	simulateError(error: Error): void {
 		setTimeout(() => {
 			if (this.onerror) this.onerror(error);
@@ -162,8 +162,8 @@ export class MockWebSocket {
 	}
 
 	/**
-   * Simulates the WebSocket closing.
-   */
+	 * Simulates the WebSocket closing.
+	 */
 	simulateClose(): void {
 		this.readyState = 3; // CLOSED
 		setTimeout(() => {
@@ -172,8 +172,8 @@ export class MockWebSocket {
 	}
 
 	/**
-   * Simulates a connection failure (error followed by close).
-   */
+	 * Simulates a connection failure (error followed by close).
+	 */
 	simulateConnectionFailure(): void {
 		this.simulateError(new Error('Network failure'));
 	}
@@ -322,7 +322,7 @@ export class MockWebSocketConnector extends WebSocketConnectorBase {
 		return new Promise<WebSocketState>((resolve) => {
 			this.mockWs = new MockWebSocket();
 			this._setupWebSocketListeners();
-      
+
 			// Auto-open the connection after a short delay
 			setTimeout(() => {
 				if (this.mockWs) {

@@ -7,19 +7,19 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.NodeWebSocketConnector = void 0;
 const tslib_1 = require("tslib");
 const ws_1 = tslib_1.__importDefault(require("ws"));
-const interfaces_1 = require("./interfaces");
-const WebSocketConnectorBase_1 = require("./WebSocketConnectorBase");
-class NodeWebSocketConnector extends WebSocketConnectorBase_1.WebSocketConnectorBase {
+const interfaces_js_1 = require("./interfaces.js");
+const WebSocketConnectorBase_js_1 = require("./WebSocketConnectorBase.js");
+class NodeWebSocketConnector extends WebSocketConnectorBase_js_1.WebSocketConnectorBase {
     constructor(url, options) {
         super(url, options);
     }
     async _ensureConnection() {
         var _a, _b;
         if (((_a = this._webSocket) === null || _a === void 0 ? void 0 : _a.readyState) === ws_1.default.OPEN) {
-            return interfaces_1.WebSocketState.Connected;
+            return interfaces_js_1.WebSocketState.Connected;
         }
         if (((_b = this._webSocket) === null || _b === void 0 ? void 0 : _b.readyState) === ws_1.default.CONNECTING) {
-            return interfaces_1.WebSocketState.Connecting;
+            return interfaces_js_1.WebSocketState.Connecting;
         }
         return this._connectWebSocket();
     }
@@ -78,8 +78,8 @@ class NodeWebSocketConnector extends WebSocketConnectorBase_1.WebSocketConnector
                 : new ws_1.default(this.url, wsOptions);
             this._webSocket = ws;
             ws.on('open', () => {
-                this._updateState(interfaces_1.WebSocketState.Connected);
-                resolve(interfaces_1.WebSocketState.Connected);
+                this._updateState(interfaces_js_1.WebSocketState.Connected);
+                resolve(interfaces_js_1.WebSocketState.Connected);
             });
             ws.on('message', (data) => {
                 let message;
@@ -113,14 +113,14 @@ class NodeWebSocketConnector extends WebSocketConnectorBase_1.WebSocketConnector
                     this._handleConnectionFailure(error);
                 }
                 else {
-                    this._updateState(interfaces_1.WebSocketState.Disconnected);
+                    this._updateState(interfaces_js_1.WebSocketState.Disconnected);
                 }
             });
             ws.on('error', (error) => {
                 this._handleConnectionFailure(error);
                 reject(error);
             });
-            this._updateState(interfaces_1.WebSocketState.Connecting);
+            this._updateState(interfaces_js_1.WebSocketState.Connecting);
         });
     }
     _onDisposeAsync() {

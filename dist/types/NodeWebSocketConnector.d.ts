@@ -2,8 +2,8 @@
  * @author electricessence / https://github.com/electricessence/
  * @license MIT
  */
-import { WebSocketMessage, WebSocketState, WebSocketOptions } from './interfaces';
-import { WebSocketConnectorBase } from './WebSocketConnectorBase';
+import { WebSocketMessage, WebSocketState, WebSocketOptions } from './interfaces.js';
+import { WebSocketConnectorBase } from './WebSocketConnectorBase.js';
 export declare class NodeWebSocketConnector extends WebSocketConnectorBase {
     private _webSocket;
     constructor(url: string, options?: WebSocketOptions);

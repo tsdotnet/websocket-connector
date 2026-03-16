@@ -4,8 +4,8 @@
  */
 
 import WebSocket from 'ws';
-import { WebSocketMessage, WebSocketState, WebSocketOptions } from './interfaces';
-import { WebSocketConnectorBase } from './WebSocketConnectorBase';
+import { WebSocketMessage, WebSocketState, WebSocketOptions } from './interfaces.js';
+import { WebSocketConnectorBase } from './WebSocketConnectorBase.js';
 
 /**
  * Node.js WebSocket connector implementation using the 'ws' library.

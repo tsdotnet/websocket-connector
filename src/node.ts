@@ -3,5 +3,5 @@
  * @license MIT
  */
 
-export * from './interfaces';
-export * from './NodeWebSocketConnector';
+export * from './interfaces.js';
+export * from './NodeWebSocketConnector.js';

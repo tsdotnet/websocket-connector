@@ -2,8 +2,8 @@
  * @author electricessence / https://github.com/electricessence/
  * @license MIT
  */
-export * from './interfaces';
-export * from './WebSocketConnectorBase';
-export { NodeWebSocketConnector } from './NodeWebSocketConnector';
-export { BrowserWebSocketConnector } from './BrowserWebSocketConnector';
-export { MockWebSocketConnector } from './MockWebSocketConnector';
+export * from './interfaces.js';
+export * from './WebSocketConnectorBase.js';
+export { NodeWebSocketConnector } from './NodeWebSocketConnector.js';
+export { BrowserWebSocketConnector } from './BrowserWebSocketConnector.js';
+export { MockWebSocketConnector } from './MockWebSocketConnector.js';

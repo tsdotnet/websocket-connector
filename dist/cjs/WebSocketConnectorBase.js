@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.WebSocketConnectorBase = void 0;
 const disposable_1 = require("@tsdotnet/disposable");
 const rxjs_1 = require("rxjs");
-const interfaces_1 = require("./interfaces");
+const interfaces_js_1 = require("./interfaces.js");
 class VirtualWebSocketConnection extends disposable_1.DisposableBase {
     constructor(_connector, _sendFn, _onDisposeCallback) {
         super();
@@ -32,7 +32,7 @@ class VirtualWebSocketConnection extends disposable_1.DisposableBase {
 }
 class WebSocketConnectorBase extends disposable_1.AsyncDisposableBase {
     _updateState(state) {
-        if (this._state$.value !== interfaces_1.WebSocketState.Disposing && this._state$.value !== interfaces_1.WebSocketState.Disposed) {
+        if (this._state$.value !== interfaces_js_1.WebSocketState.Disposing && this._state$.value !== interfaces_js_1.WebSocketState.Disposed) {
             this._state$.next(state);
         }
     }
@@ -47,7 +47,7 @@ class WebSocketConnectorBase extends disposable_1.AsyncDisposableBase {
         this.url = url;
         this.options = options;
         this._virtualConnections = new Set();
-        this._state$ = new rxjs_1.BehaviorSubject(interfaces_1.WebSocketState.Disconnected);
+        this._state$ = new rxjs_1.BehaviorSubject(interfaces_js_1.WebSocketState.Disconnected);
         this._error$ = new rxjs_1.Subject();
         this._message$ = new rxjs_1.Subject();
         this._currentAttempt = 0;
@@ -61,7 +61,7 @@ class WebSocketConnectorBase extends disposable_1.AsyncDisposableBase {
     async connect() {
         this.assertIsAlive();
         this._cancelIdleDisconnect();
-        if (this._state$.value !== interfaces_1.WebSocketState.Connected) {
+        if (this._state$.value !== interfaces_js_1.WebSocketState.Connected) {
             await this._connect();
         }
         const virtualConnection = new VirtualWebSocketConnection(this, (data) => this._send(data), () => {
@@ -75,10 +75,10 @@ class WebSocketConnectorBase extends disposable_1.AsyncDisposableBase {
     }
     async _send(data) {
         this.assertIsAlive();
-        if (this._state$.value !== interfaces_1.WebSocketState.Connected) {
+        if (this._state$.value !== interfaces_js_1.WebSocketState.Connected) {
             await this._connect();
         }
-        if (this._state$.value !== interfaces_1.WebSocketState.Connected) {
+        if (this._state$.value !== interfaces_js_1.WebSocketState.Connected) {
             throw new Error('WebSocket failed to connect.');
         }
         await this._sendMessage(data);
@@ -92,7 +92,7 @@ class WebSocketConnectorBase extends disposable_1.AsyncDisposableBase {
         const idleTimeout = (_a = this.options.idleTimeoutMs) !== null && _a !== void 0 ? _a : 10000;
         this._idleTimeoutId = setTimeout(() => {
             this._idleTimeoutId = undefined;
-            if (this._virtualConnections.size === 0 && !this.wasDisposed && this._state$.value !== interfaces_1.WebSocketState.Disposing) {
+            if (this._virtualConnections.size === 0 && !this.wasDisposed && this._state$.value !== interfaces_js_1.WebSocketState.Disposing) {
                 this._disconnect();
             }
         }, idleTimeout);
@@ -110,7 +110,7 @@ class WebSocketConnectorBase extends disposable_1.AsyncDisposableBase {
         const requestedAttempts = (_a = this.options.reconnectAttempts) !== null && _a !== void 0 ? _a : 0;
         const maxAttempts = Math.min(requestedAttempts, 10);
         if (maxAttempts > 0 && this._currentAttempt < maxAttempts && this._virtualConnections.size > 0) {
-            this._state$.next(interfaces_1.WebSocketState.Reconnecting);
+            this._state$.next(interfaces_js_1.WebSocketState.Reconnecting);
             this._currentAttempt++;
             const delay = Math.min(1000 * Math.pow(2, this._currentAttempt - 1), 30000);
             setTimeout(async () => {
@@ -126,32 +126,32 @@ class WebSocketConnectorBase extends disposable_1.AsyncDisposableBase {
             }, delay);
         }
         else {
-            this._state$.next(interfaces_1.WebSocketState.Disconnected);
+            this._state$.next(interfaces_js_1.WebSocketState.Disconnected);
             this._currentAttempt = 0;
         }
     }
     async _connect() {
-        if (this._state$.value === interfaces_1.WebSocketState.Connected) {
+        if (this._state$.value === interfaces_js_1.WebSocketState.Connected) {
             return;
         }
         const d = this._disconnecting;
         if (d)
             await d;
         this.assertIsAlive();
-        this._state$.next(interfaces_1.WebSocketState.Connecting);
+        this._state$.next(interfaces_js_1.WebSocketState.Connecting);
         try {
             this._state$.next(await this._ensureConnection());
         }
         catch (error) {
-            this._state$.next(interfaces_1.WebSocketState.Disconnected);
+            this._state$.next(interfaces_js_1.WebSocketState.Disconnected);
             throw error;
         }
     }
     get targetState() {
         switch (this._state$.value) {
-            case interfaces_1.WebSocketState.Connecting:
-            case interfaces_1.WebSocketState.Reconnecting:
-            case interfaces_1.WebSocketState.Connected:
+            case interfaces_js_1.WebSocketState.Connecting:
+            case interfaces_js_1.WebSocketState.Reconnecting:
+            case interfaces_js_1.WebSocketState.Connected:
                 return true;
             default:
                 return false;
@@ -161,21 +161,21 @@ class WebSocketConnectorBase extends disposable_1.AsyncDisposableBase {
         const d = this._disconnecting;
         if (d)
             return d;
-        this._state$.next(interfaces_1.WebSocketState.Disconnecting);
+        this._state$.next(interfaces_js_1.WebSocketState.Disconnecting);
         await (this._disconnecting = this._ensureDisconnect());
         this._disconnecting = null;
-        this._state$.next(interfaces_1.WebSocketState.Disconnected);
+        this._state$.next(interfaces_js_1.WebSocketState.Disconnected);
     }
     async _onDisposeAsync() {
         this._message$.complete();
         this._error$.complete();
         await this._disconnect();
-        this._state$.next(interfaces_1.WebSocketState.Disposing);
+        this._state$.next(interfaces_js_1.WebSocketState.Disposing);
         const connections = Array.from(this._virtualConnections);
         for (const connection of connections) {
             connection.dispose();
         }
-        this._state$.next(interfaces_1.WebSocketState.Disposed);
+        this._state$.next(interfaces_js_1.WebSocketState.Disposed);
         this._state$.complete();
     }
 }

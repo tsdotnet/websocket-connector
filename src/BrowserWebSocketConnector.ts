@@ -3,8 +3,8 @@
  * @license MIT
  */
 
-import { WebSocketMessage, WebSocketState, WebSocketOptions } from './interfaces';
-import { WebSocketConnectorBase } from './WebSocketConnectorBase';
+import { WebSocketMessage, WebSocketState, WebSocketOptions } from './interfaces.js';
+import { WebSocketConnectorBase } from './WebSocketConnectorBase.js';
 
 /**
  * WebSocket connector for browser environments using the native WebSocket API.

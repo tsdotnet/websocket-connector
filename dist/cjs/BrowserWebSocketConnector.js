@@ -5,19 +5,19 @@
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BrowserWebSocketConnector = void 0;
-const interfaces_1 = require("./interfaces");
-const WebSocketConnectorBase_1 = require("./WebSocketConnectorBase");
-class BrowserWebSocketConnector extends WebSocketConnectorBase_1.WebSocketConnectorBase {
+const interfaces_js_1 = require("./interfaces.js");
+const WebSocketConnectorBase_js_1 = require("./WebSocketConnectorBase.js");
+class BrowserWebSocketConnector extends WebSocketConnectorBase_js_1.WebSocketConnectorBase {
     constructor(url, options) {
         super(url, options);
     }
     async _ensureConnection() {
         var _a, _b;
         if (((_a = this._webSocket) === null || _a === void 0 ? void 0 : _a.readyState) === WebSocket.OPEN) {
-            return interfaces_1.WebSocketState.Connected;
+            return interfaces_js_1.WebSocketState.Connected;
         }
         if (((_b = this._webSocket) === null || _b === void 0 ? void 0 : _b.readyState) === WebSocket.CONNECTING) {
-            return interfaces_1.WebSocketState.Connecting;
+            return interfaces_js_1.WebSocketState.Connecting;
         }
         return this._connectWebSocket();
     }
@@ -64,8 +64,8 @@ class BrowserWebSocketConnector extends WebSocketConnectorBase_1.WebSocketConnec
             this._webSocket = ws;
             const onOpen = () => {
                 cleanup();
-                this._updateState(interfaces_1.WebSocketState.Connected);
-                resolve(interfaces_1.WebSocketState.Connected);
+                this._updateState(interfaces_js_1.WebSocketState.Connected);
+                resolve(interfaces_js_1.WebSocketState.Connected);
             };
             const onMessage = (event) => {
                 let message;
@@ -91,7 +91,7 @@ class BrowserWebSocketConnector extends WebSocketConnectorBase_1.WebSocketConnec
                     this._handleConnectionFailure(error);
                 }
                 else {
-                    this._updateState(interfaces_1.WebSocketState.Disconnected);
+                    this._updateState(interfaces_js_1.WebSocketState.Disconnected);
                 }
             };
             const onError = () => {
@@ -110,7 +110,7 @@ class BrowserWebSocketConnector extends WebSocketConnectorBase_1.WebSocketConnec
             ws.addEventListener('message', onMessage);
             ws.addEventListener('close', onClose);
             ws.addEventListener('error', onError);
-            this._updateState(interfaces_1.WebSocketState.Connecting);
+            this._updateState(interfaces_js_1.WebSocketState.Connecting);
         });
     }
     _onDisposeAsync() {

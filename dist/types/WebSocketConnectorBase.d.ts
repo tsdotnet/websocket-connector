@@ -1,6 +1,6 @@
 import { AsyncDisposableBase } from '@tsdotnet/disposable';
 import { Observable } from 'rxjs';
-import { WebSocketConnector, WebSocketConnection, WebSocketMessage, WebSocketOptions, WebSocketState } from './interfaces';
+import { WebSocketConnector, WebSocketConnection, WebSocketMessage, WebSocketOptions, WebSocketState } from './interfaces.js';
 export declare abstract class WebSocketConnectorBase extends AsyncDisposableBase implements WebSocketConnector {
     protected readonly url: string;
     protected readonly options: WebSocketOptions;

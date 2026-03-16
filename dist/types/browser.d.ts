@@ -2,5 +2,5 @@
  * @author electricessence / https://github.com/electricessence/
  * @license MIT
  */
-export * from './interfaces';
-export * from './BrowserWebSocketConnector';
+export * from './interfaces.js';
+export * from './BrowserWebSocketConnector.js';

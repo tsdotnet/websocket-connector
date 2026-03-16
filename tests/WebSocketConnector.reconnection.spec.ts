@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { firstValueFrom, take } from 'rxjs';
-import { WebSocketConnectorBase } from '../src/WebSocketConnectorBase';
-import { WebSocketMessage, WebSocketState, WebSocketOptions } from '../src/interfaces';
-import { MockWebSocketConnector } from '../src/MockWebSocketConnector';
+import { WebSocketConnectorBase } from '../src/WebSocketConnectorBase.js';
+import { WebSocketMessage, WebSocketState, WebSocketOptions } from '../src/interfaces.js';
+import { MockWebSocketConnector } from '../src/MockWebSocketConnector.js';
 
 class ReconnectionTestConnector extends MockWebSocketConnector {
   // Enhanced for reconnection testing

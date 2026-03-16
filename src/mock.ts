@@ -3,5 +3,5 @@
  * @license MIT
  */
 
-export * from './interfaces';
-export * from './MockWebSocketConnector';
+export * from './interfaces.js';
+export * from './MockWebSocketConnector.js';

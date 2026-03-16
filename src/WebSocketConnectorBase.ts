@@ -1,6 +1,6 @@
 import { AsyncDisposableBase, DisposableBase } from '@tsdotnet/disposable';
 import { BehaviorSubject, Observable, PartialObserver, Subject, type Subscription } from 'rxjs';
-import { WebSocketConnector, WebSocketConnection, WebSocketMessage, WebSocketOptions, WebSocketState } from './interfaces';
+import { WebSocketConnector, WebSocketConnection, WebSocketMessage, WebSocketOptions, WebSocketState } from './interfaces.js';
 
 /**
  * Virtual WebSocket connection that wraps a shared physical connection.

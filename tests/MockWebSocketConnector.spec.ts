@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { firstValueFrom, take } from 'rxjs';
-import { MockWebSocket, MockWebSocketConnector } from '../src/MockWebSocketConnector';
-import { WebSocketState } from '../src/interfaces';
+import { MockWebSocket, MockWebSocketConnector } from '../src/MockWebSocketConnector.js';
+import { WebSocketState } from '../src/interfaces.js';
 
 describe('MockWebSocket', () => {
   let mockWs: MockWebSocket;

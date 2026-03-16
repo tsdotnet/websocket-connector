@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { firstValueFrom, take } from 'rxjs';
-import { MockWebSocketConnector } from '../src/MockWebSocketConnector';
-import { WebSocketState } from '../src/interfaces';
+import { MockWebSocketConnector } from '../src/MockWebSocketConnector.js';
+import { WebSocketState } from '../src/interfaces.js';
 
 // Extended mock connector for testing edge cases
 class EdgeCaseTestConnector extends MockWebSocketConnector {

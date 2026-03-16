@@ -1,8 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.MockWebSocketConnector = exports.MockWebSocket = void 0;
-const WebSocketConnectorBase_1 = require("./WebSocketConnectorBase");
-const interfaces_1 = require("./interfaces");
+const WebSocketConnectorBase_js_1 = require("./WebSocketConnectorBase.js");
+const interfaces_js_1 = require("./interfaces.js");
 class MockWebSocket {
     constructor() {
         this.readyState = 0;
@@ -60,18 +60,18 @@ class MockWebSocket {
     }
 }
 exports.MockWebSocket = MockWebSocket;
-class MockWebSocketConnector extends WebSocketConnectorBase_1.WebSocketConnectorBase {
+class MockWebSocketConnector extends WebSocketConnectorBase_js_1.WebSocketConnectorBase {
     async _ensureConnection() {
         var _a, _b;
         if (((_a = this.mockWs) === null || _a === void 0 ? void 0 : _a.readyState) === 1) {
-            return interfaces_1.WebSocketState.Connected;
+            return interfaces_js_1.WebSocketState.Connected;
         }
         if (((_b = this.mockWs) === null || _b === void 0 ? void 0 : _b.readyState) === 0) {
             return new Promise((resolve) => {
                 const checkConnection = () => {
                     var _a;
                     if (((_a = this.mockWs) === null || _a === void 0 ? void 0 : _a.readyState) === 1) {
-                        resolve(interfaces_1.WebSocketState.Connected);
+                        resolve(interfaces_js_1.WebSocketState.Connected);
                     }
                     else {
                         setTimeout(checkConnection, 1);
@@ -111,7 +111,7 @@ class MockWebSocketConnector extends WebSocketConnectorBase_1.WebSocketConnector
             setTimeout(() => {
                 if (this.mockWs) {
                     this.mockWs.simulateOpen();
-                    resolve(interfaces_1.WebSocketState.Connected);
+                    resolve(interfaces_js_1.WebSocketState.Connected);
                 }
             }, 5);
         });
@@ -125,7 +125,7 @@ class MockWebSocketConnector extends WebSocketConnectorBase_1.WebSocketConnector
             this._emitMessage(event.data);
         };
         this.mockWs.onclose = () => {
-            this._updateState(interfaces_1.WebSocketState.Disconnected);
+            this._updateState(interfaces_js_1.WebSocketState.Disconnected);
         };
         this.mockWs.onerror = (error) => {
             this._emitError(error);

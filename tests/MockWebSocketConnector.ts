@@ -1,5 +1,5 @@
-import { WebSocketConnectorBase } from '../src/WebSocketConnectorBase';
-import { WebSocketMessage, WebSocketState } from '../src/interfaces';
+import { WebSocketConnectorBase } from '../src/WebSocketConnectorBase.js';
+import { WebSocketMessage, WebSocketState } from '../src/interfaces.js';
 
 // Mock WebSocket for testing
 export class MockWebSocket {

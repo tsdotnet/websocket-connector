@@ -26,8 +26,8 @@ importers:
   .:
     dependencies:
       '@tsdotnet/disposable':
-        specifier: ^2.0.2
-        version: 2.0.2
+        specifier: ^2.0.3
+        version: 2.0.3
       rxjs:
         specifier: ^7.8.2
         version: 7.8.2
@@ -519,8 +519,8 @@ packages:
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
 
-  '@tsdotnet/disposable@2.0.2':
-    resolution: {integrity: sha512-PcuGumJoYcg5JXst47TFZHcfe2z12rB+McY2qyAa2Qv7FZ27yXxItib8Bkl8EQLOP7C1JLcYUoyLXsJ1KlMU6g==}
+  '@tsdotnet/disposable@2.0.3':
+    resolution: {integrity: sha512-+VfyDsy9RcdZGuLADcHU4BUf87VB+2jFw2rPDWVhkEQXbDugdKb10uVZTjvgHEVAerO+ilg5CniJSWucQuna+A==}
 
   '@types/chai@5.2.3':
     resolution: {integrity: sha512-Mw558oeA9fFbv65/y4mHtXDs9bPnFMZAL/jxdPFUpOHHIXX91mcgEHbS5Lahr+pwZFR8A7GQleRWeI6cGFC2UA==}
@@ -1613,7 +1613,7 @@ snapshots:
 
   '@standard-schema/spec@1.1.0': {}
 
-  '@tsdotnet/disposable@2.0.2':
+  '@tsdotnet/disposable@2.0.3':
     dependencies:
       tslib: 2.8.1
 

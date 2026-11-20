@@ -157,7 +157,7 @@
     "vitest": "^5.1.1"
   },
   "dependencies": {
-    "@tsdotnet/disposable": "^2.0.3",
+    "@tsdotnet/disposable": "^2.1.0",
     "rxjs": "^7.8.2",
     "tslib": "^2.9.1",
     "ws": "^8.23.0"

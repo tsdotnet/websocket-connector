@@ -34,8 +34,8 @@ importers:
   .:
     dependencies:
       '@tsdotnet/disposable':
-        specifier: ^2.1.1
-        version: 2.1.1
+        specifier: ^2.1.2
+        version: 2.1.2
       rxjs:
         specifier: ^7.8.2
         version: 7.8.2
@@ -680,8 +680,8 @@ packages:
     resolution: {integrity: sha512-tlqY9xq5ukxTUZBmoOp+m61cqwQD5pHJtFY3Mn8CA8ps6yghLH/Hw8UPdqg4OLmFW3IFlcXnQNmo/dh8HzXYIQ==}
     engines: {node: '>=18'}
 
-  '@tsdotnet/disposable@2.1.1':
-    resolution: {integrity: sha512-GVhMLQPM9GUFZtyIm3YWcKJKjnf0q5yd/V/mNpFiqDbKvWh64uCVU6lirPl6Izb9/LXc2Qgxn86cQxhpDD1ylg==}
+  '@tsdotnet/disposable@2.1.2':
+    resolution: {integrity: sha512-qVLeiFlW2524BLtMd4IUICQcK2l+jyR4Z64Zyt7YR7nvIorFqsFprYSTwgMcvbDToRmxNsYMO+udYoKdKj0RMQ==}
 
   '@tybys/wasm-util@0.10.5':
     resolution: {integrity: sha512-dOGOPxlaNV+G046mZzN+9C0dAcQZeSKcXiVaM0TYy/LM4ttTmgSBDxYfovcYI8Em3+eAbiAYpvWLOv8+ZVRJKA==}
@@ -2071,7 +2071,7 @@ snapshots:
 
   '@sindresorhus/merge-streams@4.0.0': {}
 
-  '@tsdotnet/disposable@2.1.1':
+  '@tsdotnet/disposable@2.1.2':
     dependencies:
       tslib: 2.9.1
 

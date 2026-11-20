@@ -57,7 +57,8 @@ export class BrowserWebSocketConnector extends WebSocketConnectorBase {
 		}
 
 		// Browser WebSocket.send() is synchronous but we return a Promise for consistency
-		this._webSocket.send(data);
+		// A Uint8Array may be backed by a SharedArrayBuffer, which BufferSource (and WebSocket.send) rejects; copy it into an ArrayBuffer-backed view.
+		this._webSocket.send(typeof data === 'string' || data instanceof ArrayBuffer ? data : new Uint8Array(data));
 	}
 
 	protected async _ensureDisconnect(): Promise<void> {

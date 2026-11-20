@@ -23,7 +23,7 @@ class BrowserWebSocketConnector extends WebSocketConnectorBase {
         if (!this._webSocket || this._webSocket.readyState !== WebSocket.OPEN) {
             throw new Error('WebSocket is not open');
         }
-        this._webSocket.send(data);
+        this._webSocket.send(typeof data === 'string' || data instanceof ArrayBuffer ? data : new Uint8Array(data));
     }
     async _ensureDisconnect() {
         if (!this._webSocket || this._webSocket.readyState === WebSocket.CLOSED) {

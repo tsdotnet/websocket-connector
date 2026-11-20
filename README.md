@@ -1,4 +1,4 @@
-![@tsdotnet/websocket-connector: Many streams, one socket. Pooled WebSockets for Node and browser.](https://cdn.jsdelivr.net/gh/tsdotnet/websocket-connector@master/assets/banner.svg)
+<a name="banner"><img src="https://cdn.jsdelivr.net/gh/tsdotnet/websocket-connector@master/assets/banner.svg" alt="@tsdotnet/websocket-connector: Many streams, one socket. Pooled WebSockets for Node and browser."></a>
 
 [![npm version](https://img.shields.io/npm/v/@tsdotnet/websocket-connector.svg?style=flat-square)](https://www.npmjs.com/package/@tsdotnet/websocket-connector)
 [![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square)](https://github.com/tsdotnet/websocket-connector/blob/master/LICENSE)

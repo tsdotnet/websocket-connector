@@ -99,6 +99,19 @@
     "./package.json": "./package.json"
   },
   "types": "./dist/types/index.d.ts",
+  "typesVersions": {
+    "*": {
+      "node": [
+        "dist/cjs/node.d.ts"
+      ],
+      "browser": [
+        "dist/cjs/browser.d.ts"
+      ],
+      "mock": [
+        "dist/cjs/mock.d.ts"
+      ]
+    }
+  },
   "keywords": [
     "websocket",
     "connector",
